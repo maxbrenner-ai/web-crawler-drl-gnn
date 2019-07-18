@@ -8,9 +8,9 @@ from gnn import GNN
 # Input: (N, f)
 # Output: (N, h)
 class InputModel(nn.Module):
-    def __init__(self, num_nodes, feat_size, hidden_size):
+    def __init__(self, feat_size, hidden_size):
         super(InputModel, self).__init__()
-        self.num_nodes = num_nodes
+        # self.num_nodes = num_nodes
         self.feat_size = feat_size
         self.hidden_size = hidden_size
         self.model = nn.Sequential(
@@ -20,18 +20,18 @@ class InputModel(nn.Module):
         )
 
     def forward(self, nodes):
-        assert nodes.shape == (self.num_nodes, self.feat_size)
+        # assert nodes.shape == (self.num_nodes, self.feat_size)
         hidden_states = self.model(nodes)
-        assert hidden_states.shape == (self.num_nodes, self.hidden_size)
+        # assert hidden_states.shape == (self.num_nodes, self.hidden_size)
         return hidden_states
 
 
 # Input: (N, h) which is all nodes hidden states
 # Outut: (N, m) all nodes messages
 class MessageModel(nn.Module):
-    def __init__(self, num_nodes, hidden_size, message_size):
+    def __init__(self, hidden_size, message_size):
         super(MessageModel, self).__init__()
-        self.num_nodes = num_nodes
+        # self.num_nodes = num_nodes
         self.hidden_size = hidden_size
         self.message_size = message_size
         self.model = nn.Sequential(
@@ -41,71 +41,88 @@ class MessageModel(nn.Module):
         )
 
     def forward(self, nodes):
-        assert nodes.shape == (self.num_nodes, self.hidden_size)
+        # assert nodes.shape == (self.num_nodes, self.hidden_size)
         messages = self.model(nodes)
-        assert messages.shape == (self.num_nodes, self.message_size)
+        # assert messages.shape == (self.num_nodes, self.message_size)
         return messages
 
 
 # Input: (N, m + h) agg messages and hidden states
 # Output: (N, h) new hidden states for nodes
+# If goal_opt is 1 then add goal to update model input
 class UpdateModel(nn.Module):
-    def __init__(self, num_nodes, message_size, hidden_size):
+    def __init__(self, message_size, hidden_size, goal_size=None):
         super(UpdateModel, self).__init__()
-        self.num_nodes = num_nodes
-        self.message_size = message_size
-        self.hidden_size = hidden_size
-        self.input_size = message_size + hidden_size
+        if goal_size:
+            input_size = message_size + hidden_size + goal_size
+            self.use_goal = True
+        else:
+            input_size = message_size + hidden_size
+            self.use_goal = False
+            
         self.model = nn.Sequential(
-            nn.Linear(self.input_size, self.hidden_size),
+            nn.Linear(input_size, hidden_size),
             nn.ReLU(),
             nn.Dropout(0.5)
         )
 
-    def forward(self, messages, hidden_states):
-        assert messages.shape == (self.num_nodes, self.message_size)
-        assert hidden_states.shape == (self.num_nodes, self.hidden_size)
+    def forward(self, messages, hidden_states, goal):
         # Concat
-        concat = torch.cat([messages, hidden_states], dim=1)
-        assert concat.shape == (self.num_nodes, self.input_size)
+        if self.use_goal:
+            concat = torch.cat([messages, hidden_states, goal], dim=1)
+        else:
+            concat = torch.cat([messages, hidden_states], dim=1)
         updates = self.model(concat)
-        assert updates.shape == (self.num_nodes, self.hidden_size)
         return updates
 
 
 # Input: (N, h)  updated node hidden states
 # Output: (N, o)  outputs for each node (softmax on classes)
+# If goal_opt == 2 then send in goal
 class OutputModel(nn.Module):
-    def __init__(self, num_nodes, hidden_size, output_size):
+    def __init__(self, hidden_size, output_size, goal_size=None):
         super(OutputModel, self).__init__()
-        self.num_nodes = num_nodes
-        self.hidden_size = hidden_size
-        self.output_size = output_size
+        if goal_size:
+            input_size = hidden_size + goal_size
+            self.use_goal = True
+        else:
+            input_size = hidden_size
+            self.use_goal = False
+            
         self.model = nn.Sequential(
-            nn.Linear(self.hidden_size, self.output_size)
+            nn.Linear(input_size, output_size)
         )
 
-    def forward(self, nodes):
-        assert nodes.shape == (self.num_nodes, self.hidden_size)
-        outputs = self.model(nodes)
-        assert outputs.shape == (self.num_nodes, self.output_size)
+    def forward(self, nodes, goal):
+        if self.use_goal:
+            concat = torch.cat([nodes, goal], dim=1)
+        else:
+            concat = nodes
+        outputs = self.model(concat)
         return outputs
 
 
 class NerveNet_GNN(GNN):
-    def __init__(self, num_nodes, feat_size, hidden_size, message_size, output_size):
+    def __init__(self, feat_size, hidden_size, message_size, output_size, goal_size, goal_opt):
         super(NerveNet_GNN, self).__init__()
 
-        self.num_nodes = num_nodes
+        # self.num_nodes = num_nodes
         # self.feat_size = feat_size
         # self.hidden_size = hidden_size
         self.message_size = message_size
         # self.output_size = output_size
-
-        self.input_model = InputModel(num_nodes, feat_size, hidden_size)
-        self.message_model = MessageModel(num_nodes, hidden_size, message_size)
-        self.update_model = UpdateModel(num_nodes, message_size, hidden_size)
-        self.output_model = OutputModel(num_nodes, hidden_size, output_size)
+        
+        update_goal_size = None
+        output_goal_size = None
+        if goal_opt == 1:
+            update_goal_size = goal_size
+        elif goal_opt == 2:
+            output_goal_size = goal_size
+        
+        self.input_model = InputModel(feat_size, hidden_size)
+        self.message_model = MessageModel(hidden_size, message_size)
+        self.update_model = UpdateModel(message_size, hidden_size, update_goal_size)
+        self.output_model = OutputModel(hidden_size, output_size, output_goal_size)
 
     # Input: (N x m)
     # Output: (N x m)
@@ -122,11 +139,11 @@ class NerveNet_GNN(GNN):
             else:
                 agg.append(torch.zeros(self.message_size))
         stack = torch.stack(agg)
-        assert stack.shape == (self.num_nodes, self.message_size)
+        # assert stack.shape == (self.num_nodes, self.message_size)
         return stack
 
     # Propogate: assumes that the feats are sent in every episode/epoch
-    def forward(self, inputs, send_input, get_output, predecessors):
+    def forward(self, inputs, send_input, get_output, predecessors, goal):
         # Get initial hidden states ------
         if send_input:
             node_states = self.input_model(inputs)
@@ -137,10 +154,10 @@ class NerveNet_GNN(GNN):
         # Aggregate pred. edges -----
         aggregates = self._aggregate(predecessors, messages)
         # Get Updates for each node hidden state ---------
-        updates = self.update_model(aggregates, node_states)
+        updates = self.update_model(aggregates, node_states, goal)
         # Get outputs if need to ------
         if get_output:
-            outputs = self.output_model(updates)
+            outputs = self.output_model(updates, goal)
             return updates, outputs
         return updates, None
 
