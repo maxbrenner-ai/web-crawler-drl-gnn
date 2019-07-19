@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 import numpy as np
 from gnn import GNN
+from utils import plot_grad_flow
 
 
 # This is so the hidden size doesnt need to be the same size as the feature size
@@ -123,6 +124,10 @@ class NerveNet_GNN(GNN):
         self.message_model = MessageModel(hidden_size, message_size)
         self.update_model = UpdateModel(message_size, hidden_size, update_goal_size)
         self.output_model = OutputModel(hidden_size, output_size, output_goal_size)
+        
+        self.models = [self.input_model, self.message_model, self.update_model, self.output_model]
+        
+        self.loss = nn.MSELoss()
 
     # Input: (N x m)
     # Output: (N x m)
@@ -160,16 +165,37 @@ class NerveNet_GNN(GNN):
             outputs = self.output_model(updates, goal)
             return updates, outputs
         return updates, None
-
-    # Outputs: (N_train, o) tensor
-    # Targets: (N_train,) tensor of the classes
+    
+    # Given model get grads
+    def _get_layer_grads(self, model):
+        layers, avg_grads, max_grads = [], [], []
+        for n, p in model.named_parameters():
+            if(p.requires_grad) and ("bias" not in n):
+                layers.append(n)
+                avg_grads.append(p.grad.abs().mean())
+                max_grads.append(p.grad.abs().max())
+        return layers, avg_grads, max_grads
+    
+    def _graph_grads(self):
+        layers = []
+        avg_grads = []
+        max_grads = []
+        
+        for model in [self.input_model, self.message_model, self.update_model, self.output_model]:
+            l, a, m = self._get_layer_grads(model)
+            layers.extend(l)
+            avg_grads.extend(a)
+            max_grads.extend(m)
+        
+        plot_grad_flow(layers, avg_grads, max_grads)
+    
+    # Output: (num_nodes,)  the outputs of the nodes
+    # Targets: (num_nodes,)  the outputs with the target in the action slot
     def backward(self, outputs, targets):
-        # assert outputs.shape == (num_train, o)
-        # assert targets.shape == (num_train,)
         loss = self.loss(outputs, targets)
         loss.backward()
         # Graph gradient flow
-        self.graph_grads([self.input_model,
+        self._graph_grads([self.input_model,
                           self.message_model,
                           self.update_model,
                           self.output_model])
