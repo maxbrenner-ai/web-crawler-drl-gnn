@@ -176,12 +176,12 @@ class NerveNet_GNN(GNN):
                 max_grads.append(p.grad.abs().max())
         return layers, avg_grads, max_grads
     
-    def _graph_grads(self):
+    def _graph_grads(self, models):
         layers = []
         avg_grads = []
         max_grads = []
         
-        for model in [self.input_model, self.message_model, self.update_model, self.output_model]:
+        for model in models:
             l, a, m = self._get_layer_grads(model)
             layers.extend(l)
             avg_grads.extend(a)
