@@ -11,6 +11,7 @@ from utils import plot_grad_flow
 class InputModel(nn.Module):
     def __init__(self, feat_size, hidden_size):
         super(InputModel, self).__init__()
+        self.name = 'input'
         # self.num_nodes = num_nodes
         self.feat_size = feat_size
         self.hidden_size = hidden_size
@@ -32,6 +33,7 @@ class InputModel(nn.Module):
 class MessageModel(nn.Module):
     def __init__(self, hidden_size, message_size):
         super(MessageModel, self).__init__()
+        self.name = 'message'
         # self.num_nodes = num_nodes
         self.hidden_size = hidden_size
         self.message_size = message_size
@@ -54,6 +56,7 @@ class MessageModel(nn.Module):
 class UpdateModel(nn.Module):
     def __init__(self, message_size, hidden_size, goal_size=None):
         super(UpdateModel, self).__init__()
+        self.name = 'update'
         if goal_size:
             input_size = message_size + hidden_size + goal_size
             self.use_goal = True
@@ -83,6 +86,7 @@ class UpdateModel(nn.Module):
 class OutputModel(nn.Module):
     def __init__(self, hidden_size, output_size, goal_size=None):
         super(OutputModel, self).__init__()
+        self.name = 'output'
         if goal_size:
             input_size = hidden_size + goal_size
             self.use_goal = True
@@ -188,6 +192,25 @@ class NerveNet_GNN(GNN):
             max_grads.extend(m)
         
         plot_grad_flow(layers, avg_grads, max_grads)
+       
+    def print_layer_weights(self, which='all'):
+        if which == 'all':
+            models = [self.input_model, self.message_model, self.update_model, self.output_model]
+        elif which == 'input':
+            models = [self.input_model]
+        elif which == 'message':
+            models = [self.message_model]
+        elif which == 'update':
+            models = [self.update_model]
+        elif which == 'output':
+            models = [self.output_model]
+            
+        weights = []
+        for model in models:
+            print('Model: ' + model.name)
+            for n, p in model.named_parameters():
+                if(p.requires_grad) and ("bias" not in n):
+                    print(str(n) + ': ' + str(p[0][:10]))
     
     # Output: (num_nodes,)  the outputs of the nodes
     # Targets: (num_nodes,)  the outputs with the target in the action slot
@@ -199,4 +222,4 @@ class NerveNet_GNN(GNN):
                           self.message_model,
                           self.update_model,
                           self.output_model])
-        return loss.data.tolist()
+        return loss.detach().numpy()
