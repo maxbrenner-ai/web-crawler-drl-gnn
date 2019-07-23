@@ -148,8 +148,9 @@ class NerveNet_GNN(GNN):
                 assert agg_in_mess.shape == (self.message_size,)
                 agg.append(agg_in_mess)
             else:
-                agg.append(torch.zeros(self.message_size, device=self.device))
+                agg.append(torch.zeros(self.message_size, device=self.device, requires_grad=True, dtype=torch.float))
         stack = torch.stack(agg)
+        
         # assert stack.shape == (self.num_nodes, self.message_size)
         return stack
 
@@ -158,12 +159,11 @@ class NerveNet_GNN(GNN):
         # Get initial hidden states ------
         if send_input:
             node_states = self.input_model(inputs)
-            # Get messages of each node ----
-            messages = self.message_model(node_states)
         else:
-            # Get messages of each node ----
-            messages = self.message_model(inputs)
+            node_states = inputs
         
+        # Get messages of each node ----
+        messages = self.message_model(node_states)
         # Aggregate pred. edges -----
         aggregates = self._aggregate(predecessors, messages)
         # Get Updates for each node hidden state ---------
