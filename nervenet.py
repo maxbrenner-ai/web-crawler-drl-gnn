@@ -108,9 +108,11 @@ class OutputModel(nn.Module):
 
 
 class NerveNet_GNN(GNN):
-    def __init__(self, feat_size, hidden_size, message_size, output_size, goal_size, goal_opt):
+    def __init__(self, feat_size, hidden_size, message_size, output_size, goal_size, goal_opt, device):
         super(NerveNet_GNN, self).__init__()
-
+        
+        self.device = device
+        
         # self.num_nodes = num_nodes
         # self.feat_size = feat_size
         # self.hidden_size = hidden_size
@@ -124,10 +126,10 @@ class NerveNet_GNN(GNN):
         elif goal_opt == 2:
             output_goal_size = goal_size
         
-        self.input_model = InputModel(feat_size, hidden_size)
-        self.message_model = MessageModel(hidden_size, message_size)
-        self.update_model = UpdateModel(message_size, hidden_size, update_goal_size)
-        self.output_model = OutputModel(hidden_size, output_size, output_goal_size)
+        self.input_model = InputModel(feat_size, hidden_size).to(device)
+        self.message_model = MessageModel(hidden_size, message_size).to(device)
+        self.update_model = UpdateModel(message_size, hidden_size, update_goal_size).to(device)
+        self.output_model = OutputModel(hidden_size, output_size, output_goal_size).to(device)
         
         self.models = [self.input_model, self.message_model, self.update_model, self.output_model]
         
@@ -146,7 +148,7 @@ class NerveNet_GNN(GNN):
                 assert agg_in_mess.shape == (self.message_size,)
                 agg.append(agg_in_mess)
             else:
-                agg.append(torch.zeros(self.message_size))
+                agg.append(torch.zeros(self.message_size, device=self.device))
         stack = torch.stack(agg)
         # assert stack.shape == (self.num_nodes, self.message_size)
         return stack
@@ -156,10 +158,12 @@ class NerveNet_GNN(GNN):
         # Get initial hidden states ------
         if send_input:
             node_states = self.input_model(inputs)
+            # Get messages of each node ----
+            messages = self.message_model(node_states)
         else:
-            node_states = inputs
-        # Get messages of each node ----
-        messages = self.message_model(node_states)
+            # Get messages of each node ----
+            messages = self.message_model(inputs)
+        
         # Aggregate pred. edges -----
         aggregates = self._aggregate(predecessors, messages)
         # Get Updates for each node hidden state ---------
@@ -187,7 +191,7 @@ class NerveNet_GNN(GNN):
         
         for model in models:
             l, a, m = self._get_layer_grads(model)
-            layers.extend(l)
+            layers.extend(model.name)
             avg_grads.extend(a)
             max_grads.extend(m)
         
@@ -222,4 +226,4 @@ class NerveNet_GNN(GNN):
                           self.message_model,
                           self.update_model,
                           self.output_model])
-        return loss.detach().numpy()
+        return loss.detach().cpu().numpy()
