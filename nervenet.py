@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from gnn import GNN
 from utils import plot_grad_flow
+import torch.nn.functional as F
 
 
 # This is so the hidden size doesnt need to be the same size as the feature size
@@ -133,7 +134,7 @@ class NerveNet_GNN(GNN):
         
         self.models = [self.input_model, self.message_model, self.update_model, self.output_model]
         
-        self.loss = nn.MSELoss()
+#         self.loss = nn.MSELoss()
 
     # Input: (N x m)
     # Output: (N x m)
@@ -148,8 +149,9 @@ class NerveNet_GNN(GNN):
                 assert agg_in_mess.shape == (self.message_size,)
                 agg.append(agg_in_mess)
             else:
-                agg.append(torch.zeros(self.message_size, device=self.device))
+                agg.append(torch.zeros(self.message_size, device=self.device, requires_grad=True, dtype=torch.float))
         stack = torch.stack(agg)
+        
         # assert stack.shape == (self.num_nodes, self.message_size)
         return stack
 
@@ -158,12 +160,11 @@ class NerveNet_GNN(GNN):
         # Get initial hidden states ------
         if send_input:
             node_states = self.input_model(inputs)
-            # Get messages of each node ----
-            messages = self.message_model(node_states)
         else:
-            # Get messages of each node ----
-            messages = self.message_model(inputs)
+            node_states = inputs
         
+        # Get messages of each node ----
+        messages = self.message_model(node_states)
         # Aggregate pred. edges -----
         aggregates = self._aggregate(predecessors, messages)
         # Get Updates for each node hidden state ---------
@@ -173,28 +174,14 @@ class NerveNet_GNN(GNN):
             outputs = self.output_model(updates, goal)
             return updates, outputs
         return updates, None
-    
-    # Given model get grads
-    def _get_layer_grads(self, model):
+
+    def _graph_grads(self):
         layers, avg_grads, max_grads = [], [], []
-        for n, p in model.named_parameters():
+        for n, p in self.named_parameters():
             if(p.requires_grad) and ("bias" not in n):
                 layers.append(n)
                 avg_grads.append(p.grad.abs().mean())
                 max_grads.append(p.grad.abs().max())
-        return layers, avg_grads, max_grads
-    
-    def _graph_grads(self, models):
-        layers = []
-        avg_grads = []
-        max_grads = []
-        
-        for model in models:
-            l, a, m = self._get_layer_grads(model)
-            layers.extend(model.name)
-            avg_grads.extend(a)
-            max_grads.extend(m)
-        
         plot_grad_flow(layers, avg_grads, max_grads)
        
     def print_layer_weights(self, which='all'):
@@ -216,14 +203,12 @@ class NerveNet_GNN(GNN):
                 if(p.requires_grad) and ("bias" not in n):
                     print(str(n) + ': ' + str(p[0][:10]))
     
-    # Output: (num_nodes,)  the outputs of the nodes
-    # Targets: (num_nodes,)  the outputs with the target in the action slot
+    # Output: (mb size, 1)  the outputs of the mb
+    # Targets: (mb size, 1)  the targets of the mb
     def backward(self, outputs, targets):
-        loss = self.loss(outputs, targets)
+        # Huber loss
+        loss = F.smooth_l1_loss(outputs, targets)
         loss.backward()
         # Graph gradient flow
-        self._graph_grads([self.input_model,
-                          self.message_model,
-                          self.update_model,
-                          self.output_model])
+        self._graph_grads()
         return loss.detach().cpu().numpy()
