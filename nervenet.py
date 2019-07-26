@@ -19,7 +19,7 @@ class InputModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(self.feat_size, self.hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.BatchNorm1d(self.hidden_size)
         )
 
     def forward(self, nodes):
@@ -41,7 +41,7 @@ class MessageModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(self.hidden_size, self.message_size),
             nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.BatchNorm1d(message_size)
         )
 
     def forward(self, nodes):
@@ -68,7 +68,7 @@ class UpdateModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.BatchNorm1d(hidden_size)
         )
 
     def forward(self, messages, hidden_states, goal):
