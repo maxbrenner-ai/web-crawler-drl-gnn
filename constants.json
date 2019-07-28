@@ -1,7 +1,7 @@
 {
     "episode_C":{
-        "train_num_eps": 20,
-        "test_num_steps": 10,
+        "train_num_eps": 500,
+        "test_num_steps": 50,
         "max_ep_steps": 10,
         "ignore_internal_nodes": false,
         "num_props": 1,
@@ -25,7 +25,7 @@
         "goal_size": null
     },
     "agent_C":{
-        "num_warmup_steps": 200,
+        "num_warmup_steps": 1000,
         "mem_max_size": 100000,
         "init_eps": 1.0,
         "final_eps": 0.05,
