@@ -1,6 +1,118 @@
 import matplotlib.pyplot as plt
+from collections import OrderedDict
+import pickle
+import numpy as np
+import networkx as nx
+from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd
 
 
+class Page:
+    def __init__(self, text, links):
+        self.text = text
+        self.links = links  # out-links
+        self.in_links = []
+        self.indx = None  # Relative to the ordered dict below
+        self.feats = None
+        
+
+def load_data_make_graph(datapath):
+    # Load the wiki-dict i want
+    with open(datapath, 'rb') as f:
+        pages = pickle.load(f)
+    # Convert to ordered dict so i can use indices to refer to pages
+    # Convert pages to ordered dict
+    pages = OrderedDict(pages)
+    # Add indices and get feats for each page
+    node_feats = []
+    for indx, (title, obj) in enumerate(pages.items()):
+        obj.indx = indx
+        node_feats.append(obj.feats)
+    node_feats = np.stack(node_feats)
+    # Make edges for graph generation
+    edges = []
+    for title, obj in pages.items():
+        for link in obj.links:
+            in_node = obj.indx
+            out_node = pages[link].indx
+            edges.append((in_node, out_node))
+    # Make whole graph
+    G_whole = nx.DiGraph()
+    G_whole.add_edges_from(edges)
+    
+    return G_whole, pages, node_feats, edges
+
+
+# For seeing how long paths tend to be in a graph
+def print_paths(num_nodes, init_node, goal_node, G):
+    arr = []
+    for _ in range(200):
+        init_node = random.randint(0, model_C['num_nodes']-1)
+        goal_node = random.randint(0, model_C['num_nodes']-1)
+        if not nx.has_path(G_whole, init_node, goal_node) or init_node == goal_node:
+            continue
+        shortest_path_length = nx.shortest_path_length(G_whole, init_node, goal_node)
+        if shortest_path_length == 1:
+            continue
+        arr.append(shortest_path_length)
+    np.array(arr).mean()
+
+    
+def cos_sim(a, b):
+    return cosine_similarity(a, b)[:, 0]
+    
+    
+# Works for both single contants and lists for grid
+def load_constants(filepath):
+    with open(filepath) as f:
+        data = json.load(f)
+    return data
+
+
+# Some of the constants from the constants file need to be filled in 
+def fill_in_missing_hyp_params(model_C, goal_C, num_nodes, num_edges, num_node_feats):
+    model_C['num_nodes'] = num_nodes
+    model_C['num_edges'] = num_edges
+    model_C['node_feat_size'] = num_node_feats
+    assert model_C['nervenet'], 'Deepmind arch not implemented yet!'
+    model_C['edge_feat_size'] = None
+    model_C['edge_hidden_size'] = None
+    
+    if goal_C['goal_input_layer']:
+        goal_size = model_C['node_hidden_size']
+    else:
+        goal_size = model_C['node_feat_size']
+    goal_C['goal_size'] = goal_size
+    
+
+def select_hyp_params(grid):
+    episode_C, model_C, goal_C, agent_C, other_C  = {}, {}, {}, {}, {}
+    def select_params(dic):
+        return_dic = {}
+        for name, values in list(dic.items()):
+            return_dic[name] = random.sample(values, 1)[0]
+        return return_dic
+    episode_C = select_params(grid['episode_C'])
+    model_C = select_params(grid['model_C'])
+    goal_C = select_params(grid['goal_C'])
+    agent_C = select_params(grid['agent_C'])
+    other_C = select_params(grid['other_C'])
+    return episode_C, model_C, goal_C, agent_C, other_C
+    
+
+def refresh_excel(filepath):
+    df = pd.read_excel(filepath)
+    df.drop(df.index.tolist(), inplace=True)
+    df.to_excel(filepath, index=False)
+    
+    
+# Vis. an episodes graphs
+def vis_ep(ep_graphs):
+    for G in ep_graphs:
+        nx.draw_kamada_kawai(G, with_labels=True)
+        plt.show()
+    
+    
 def plot_grad_flow(layers, ave_grads, max_grads):
     '''Plots the gradients flowing through different layers in the net during training.
     Can be used for checking for possible gradient vanishing / exploding problems. '''
@@ -27,3 +139,5 @@ def plot_grad_flow(layers, ave_grads, max_grads):
     plt.ylabel("average gradient")
     plt.title("Gradient flow")
     plt.grid(True)
+
+    
