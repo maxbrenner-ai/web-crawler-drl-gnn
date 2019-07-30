@@ -1,7 +1,7 @@
 {
     "episode_C":{
-        "num_train_rollouts": 1,
-        "rollout_length": 16,
+        "num_train_rollouts": 2,
+        "rollout_length": 12,
         "eval_freq": 10,
         "eval_num_eps": 50,
         "max_ep_steps": 10,
