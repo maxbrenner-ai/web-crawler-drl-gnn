@@ -113,6 +113,58 @@ def vis_ep(ep_graphs):
         plt.show()
     
     
+class Storage:
+    def __init__(self, size, keys=None):
+        if keys is None:
+            keys = []
+        keys = keys + ['s', 'a', 'r', 'm',
+                       'v', 'q', 'pi', 'log_pi', 'ent',
+                       'adv', 'ret', 'q_a', 'log_pi_a',
+                       'mean']
+        self.keys = keys
+        self.size = size
+        self.reset()
+
+    def add(self, data):
+        for k, v in data.items():
+            if k not in self.keys:
+                self.keys.append(k)
+                setattr(self, k, [])
+            getattr(self, k).append(v)
+
+    def placeholder(self):
+        for k in self.keys:
+            v = getattr(self, k)
+            if len(v) == 0:
+                setattr(self, k, [None] * self.size)
+
+    def reset(self):
+        for key in self.keys:
+            setattr(self, key, [])
+
+    def cat(self, keys):
+        data = [getattr(self, k)[:self.size] for k in keys]
+        return map(lambda x: torch.cat(x, dim=0), data)
+ 
+
+def tensor(x):
+    if isinstance(x, torch.Tensor):
+        return x
+    x = np.asarray(x, dtype=np.float)
+    x = torch.tensor(x, device=DEVICE, dtype=torch.float32)
+    return x
+  
+    
+def random_sample(indices, batch_size):
+    indices = np.asarray(np.random.permutation(indices))
+    batches = indices[:len(indices) // batch_size * batch_size].reshape(-1, batch_size)
+    for batch in batches:
+        yield batch
+    r = len(indices) % batch_size
+    if r:
+        yield indices[-r:]
+    
+    
 def plot_grad_flow(layers, ave_grads, max_grads):
     '''Plots the gradients flowing through different layers in the net during training.
     Can be used for checking for possible gradient vanishing / exploding problems. '''
