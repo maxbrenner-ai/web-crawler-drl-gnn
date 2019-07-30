@@ -1,7 +1,6 @@
 import torch.nn as nn
 import torch
 import numpy as np
-from gnn import GNN
 from utils import plot_grad_flow
 import torch.nn.functional as F
 
@@ -108,7 +107,7 @@ class OutputModel(nn.Module):
         return outputs
 
 
-class NerveNet_GNN(GNN):
+class NerveNet_GNN(nn.Module):
     def __init__(self, feat_size, hidden_size, message_size, output_size, goal_size, goal_opt, device):
         super(NerveNet_GNN, self).__init__()
         
