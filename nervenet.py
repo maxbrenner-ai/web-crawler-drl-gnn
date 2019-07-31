@@ -1,9 +1,8 @@
 import torch.nn as nn
 import torch
 import numpy as np
-from utils import plot_grad_flow
+from utils import plot_grad_flow, layer_init
 import torch.nn.functional as F
-
 
 # This is so the hidden size doesnt need to be the same size as the feature size
 # Input: (N, f)
@@ -20,6 +19,7 @@ class InputModel(nn.Module):
             nn.ReLU(),
             nn.BatchNorm1d(self.hidden_size)
         )
+        self.model.apply(layer_init)
 
     def forward(self, nodes):
         # assert nodes.shape == (self.num_nodes, self.feat_size)
@@ -42,6 +42,7 @@ class MessageModel(nn.Module):
             nn.ReLU(),
             nn.BatchNorm1d(message_size)
         )
+        self.model.apply(layer_init)
 
     def forward(self, nodes):
         # assert nodes.shape == (self.num_nodes, self.hidden_size)
@@ -69,6 +70,7 @@ class UpdateModel(nn.Module):
             nn.ReLU(),
             nn.BatchNorm1d(hidden_size)
         )
+        self.model.apply(layer_init)
 
     def forward(self, messages, hidden_states, goal):
         # Concat
@@ -97,6 +99,7 @@ class OutputModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(input_size, output_size)
         )
+        self.model.apply(layer_init)
 
     def forward(self, nodes, goal):
         if self.use_goal:

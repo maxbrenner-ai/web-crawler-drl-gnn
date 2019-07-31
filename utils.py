@@ -165,6 +165,19 @@ def random_sample(indices, batch_size):
     if r:
         yield indices[-r:]
     
+
+def layer_init(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.xavier_uniform(m.weight)
+        m.bias.data.fill_(0)
+    
+    
+def layer_init(layer, w_scale=1.0):
+    nn.init.xavier_uniform_(layer.weight.data)
+    layer.weight.data.mul_(w_scale)
+    nn.init.constant_(layer.bias.data, 0)
+    return layer
+
     
 def plot_grad_flow(layers, ave_grads, max_grads):
     '''Plots the gradients flowing through different layers in the net during training.
