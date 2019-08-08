@@ -1,0 +1,46 @@
+{
+    "episode_C":{
+        "num_train_rollouts": [10],
+        "rollout_length": [128],
+        "eval_freq": [5],
+        "eval_num_eps": [20],
+        "max_ep_steps": [10],
+        "ignore_internal_nodes": [false],
+        "num_props": [1],
+        "shortest_path_range_allowed_MIN": [4],
+        "shortest_path_range_allowed_MAX": [6]
+    },
+    "model_C":{
+        "nervenet": [true],
+        "num_nodes": [null],
+        "num_edges": [null],
+        "node_feat_size": [null],
+        "edge_feat_size": [null],
+        "node_hidden_size": [32],
+        "edge_hidden_size": [null],
+        "message_size": [32],
+        "output_size": [1]
+    },
+    "goal_C":{
+        "goal_opt": [2],
+        "goal_input_layer": [true],
+        "goal_size": [null]
+    },
+    "agent_C":{
+        "gae_tau": [0.95],
+        "entropy_weight": [0.01],
+        "minibatch_size": [32],
+        "optimization_epochs": [10],
+        "ppo_ratio_clip": [0.2],
+        "discount": [0.99],
+        "learning_rate": [1e-3],
+        "clip_grads": [true],
+        "gradient_clip": [5.0],
+        "value_loss_coef": [0.5],
+        "critic_agg_weight": [0.75]
+    },
+    "other_C":{
+        "reach_goal_rew": [10],
+        "not_reach_goal_rew": [-5]
+    }
+}

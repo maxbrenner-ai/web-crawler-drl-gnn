@@ -6,6 +6,9 @@ import networkx as nx
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 import json
+import torch.nn as nn
+import torch
+import random
 
 
 class Page:
@@ -148,11 +151,11 @@ class Storage:
         return map(lambda x: torch.cat(x, dim=0), data)
  
 
-def tensor(x):
+def tensor(x, device):
     if isinstance(x, torch.Tensor):
         return x
     x = np.asarray(x, dtype=np.float)
-    x = torch.tensor(x, device=DEVICE, dtype=torch.float32)
+    x = torch.tensor(x, device=device, dtype=torch.float32)
     return x
   
     
@@ -166,9 +169,9 @@ def random_sample(indices, batch_size):
         yield indices[-r:]
     
 
-def layer_init(m):
+def layer_init_filter(m):
     if type(m) == nn.Linear:
-        torch.nn.init.xavier_uniform(m.weight)
+        torch.nn.init.xavier_uniform_(m.weight)
         m.bias.data.fill_(0)
     
     
