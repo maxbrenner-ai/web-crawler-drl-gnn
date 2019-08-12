@@ -203,7 +203,7 @@ def plot_grad_flow(layers, ave_grads, max_grads):
     plt.plot(ave_grads, alpha=0.3, color="b")
     plt.hlines(0, 0, len(ave_grads) + 1, linewidth=1, color="k")
     plt.xticks(range(0, len(ave_grads), 1), layers, rotation="vertical")
-    plt.xlim(xmin=0, xmax=len(ave_grads))
+    plt.xlim(left=0, right=len(ave_grads))
     plt.xlabel("Layers")
     plt.ylabel("average gradient")
     plt.title("Gradient flow")
