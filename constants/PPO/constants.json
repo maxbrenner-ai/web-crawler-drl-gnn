@@ -1,10 +1,10 @@
 {
     "episode_C":{
-        "num_train_rollouts": 3,
+        "num_train_rollouts": 500,
         "rollout_length": 128,
-        "eval_freq": 25,
-        "eval_num_eps": 20,
-        "max_ep_steps": 20,
+        "eval_freq": 50,
+        "eval_num_eps": 100,
+        "max_ep_steps": 10,
         "ignore_internal_nodes": false,
         "num_props": 1,
         "shortest_path_range_allowed_MIN": 4,
@@ -35,7 +35,7 @@
         "discount": 0.99,
         "learning_rate": 1e-3,
         "clip_grads": true,
-        "gradient_clip": 5.0,
+        "gradient_clip": 1.0,
         "value_loss_coef": 0.5,
         "critic_agg_weight": 0.75
     },
