@@ -17,7 +17,7 @@ class InputModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(self.feat_size, self.hidden_size),
             nn.ReLU(),
-            nn.BatchNorm1d(self.hidden_size)
+            # nn.BatchNorm1d(self.hidden_size)
         )
         self.model.apply(layer_init_filter)
 
@@ -40,7 +40,7 @@ class MessageModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(self.hidden_size, self.message_size),
             nn.ReLU(),
-            nn.BatchNorm1d(message_size)
+            # nn.BatchNorm1d(message_size)
         )
         self.model.apply(layer_init_filter)
 
@@ -68,7 +68,7 @@ class UpdateModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
-            nn.BatchNorm1d(hidden_size)
+            # nn.BatchNorm1d(hidden_size)
         )
         self.model.apply(layer_init_filter)
 
@@ -130,19 +130,28 @@ class CriticModel(nn.Module):
         )
         self.model.apply(layer_init_filter)
 
-    def forward(self, nodes, goal):
+    def forward(self, nodes, goal, num_nodes):
         if self.use_goal:
             concat = torch.cat([nodes, goal], dim=1)
         else:
             concat = nodes
-        outputs = self.model(concat).flatten()
-        # Get the mean and max of the outputs
-        mean_out = outputs.mean()
-        max_out = outputs.max()
-        # Weight the value between the mean and max
-        value = max_out * self.weight + mean_out * (1. - self.weight)
-        assert value.shape == (), 'shape: {}'.format(value.shape)
-        return value
+        outputs_all = self.model(concat).flatten()
+        # Cut up by num nodes per state
+        values = []
+        start_indx = 0
+        for n in num_nodes:
+            outputs = outputs_all[start_indx:start_indx+n]
+            start_indx += n
+            # Get the mean and max of the outputs
+            mean_out = outputs.mean()
+            max_out = outputs.max()
+            # Weight the value between the mean and max
+            value = max_out * self.weight + mean_out * (1. - self.weight)
+            values.append(value)
+            assert value.shape == (), 'shape: {}'.format(value.shape)
+        values_tensor = torch.stack(values)
+        assert values_tensor.shape == (len(num_nodes),), values_tensor.shape
+        return values_tensor
 
 
 class NerveNet_GNN(nn.Module):
@@ -172,6 +181,21 @@ class NerveNet_GNN(nn.Module):
         
         self.models = [self.input_model, self.message_model, self.update_model, self.actor_model, self.critic_model]
 
+    def _aggregate_all(self, predecessors, messages):
+        # Cut up messages
+        num_states = len(predecessors)
+        stacks = []
+        start_indx = 0
+        for preds in predecessors:
+            num_nodes = len(preds)
+            mess = messages[start_indx:start_indx+num_nodes]
+            start_indx += num_nodes
+            agg_stack = self._aggregate(preds, mess)
+            stacks.append(agg_stack)
+        stack = torch.cat(stacks)
+
+        return stack
+
     # Input: (N x m)
     # Output: (N x m)
     def _aggregate(self, predecessors, messages):
@@ -191,34 +215,53 @@ class NerveNet_GNN(nn.Module):
         # assert stack.shape == (self.num_nodes, self.message_size)
         return stack
 
+    def _gather_dist_values(self, logits, action):
+        dist = torch.distributions.Categorical(logits=logits)
+        if action is None:
+            action = dist.sample()
+        log_prob = dist.log_prob(action)
+        entropy = dist.entropy()
+        return log_prob, entropy, action
+
     # Propogate: assumes that the feats are sent in every episode/epoch
-    def forward(self, inputs, send_input, get_output, predecessors, goal, action=None):
+    def forward(self, inputs, send_input, get_output, predecessors, goal, num_nodes, actions=None):
         # Get initial hidden states ------
         if send_input:
             node_states = self.input_model(inputs)
         else:
             node_states = inputs
-        
+
         # Get messages of each node ----
         messages = self.message_model(node_states)
         # Aggregate pred. edges -----
-        aggregates = self._aggregate(predecessors, messages)
+        aggregates = self._aggregate_all(predecessors, messages)
         # Get Updates for each node hidden state ---------
         updates = self.update_model(aggregates, node_states, goal)
+
         # Get outputs if need to ------
         if get_output:
-            logits = self.actor_model(updates, goal).flatten()
-            assert logits.shape == (inputs.shape[0],)
-            v = self.critic_model(updates, goal).unsqueeze(-1).unsqueeze(-1)
-            dist = torch.distributions.Categorical(logits=logits)
-            if action is None:
-                action = dist.sample().unsqueeze(-1)
-            log_prob = dist.log_prob(action).unsqueeze(-1)
-            entropy = dist.entropy().unsqueeze(-1).unsqueeze(-1)
-            
-            # print(action.shape, log_prob.shape, entropy.shape, v.shape)
-            
-            return updates, {'a': action, 'log_pi_a': log_prob, 'ent': entropy, 'v': v}
+            v = self.critic_model(updates, goal, num_nodes).unsqueeze(-1)
+
+            logits_all = self.actor_model(updates, goal).flatten()
+            assert logits_all.shape == (inputs.shape[0],)
+            log_prob_all, entropy_all, actions_all = [], [], []
+            start_indx = 0
+            for i, n in enumerate(num_nodes):
+                logits = logits_all[start_indx:start_indx+n]
+                action = actions[i] if actions is not None else None
+                lp, e, a = self._gather_dist_values(logits, action)
+                log_prob_all.append(lp); entropy_all.append(e); actions_all.append(a)
+                start_indx += n
+            actions_tensor = torch.stack(actions_all)
+            log_prob_tensor = torch.stack(log_prob_all).unsqueeze(-1)
+            entropy_tensor = torch.stack(entropy_all).unsqueeze(-1)
+
+            assert actions_tensor.shape == (len(num_nodes),)
+            assert log_prob_tensor.shape == (len(num_nodes), 1)
+            assert entropy_tensor.shape == (len(num_nodes), 1)
+            assert v.shape == (len(num_nodes), 1)
+
+            return updates, {'a': actions_tensor, 'log_pi_a': log_prob_tensor, 'ent': entropy_tensor, 'v': v}
         return updates, None
 
     def graph_grads(self):

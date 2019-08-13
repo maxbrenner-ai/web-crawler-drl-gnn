@@ -9,8 +9,41 @@ import json
 import torch.nn as nn
 import torch
 import random
+import torch.multiprocessing as mp
 
 
+# This assigns this agents grads to the shared grads at the very start
+def ensure_shared_grads(model, shared_model):
+    for param, shared_param in zip(model.parameters(),
+                                   shared_model.parameters()):
+        if shared_param.grad is not None:
+            return
+        shared_param._grad = param.grad
+
+
+class Counter:
+    """enable the chief to access worker's total number of updates"""
+
+    def __init__(self):
+        self.val = mp.Value("i", 0)
+        self.lock = mp.Lock()
+
+    def get(self):
+        # used by chief
+        with self.lock:
+            return self.val.value
+
+    def increment(self):
+        # used by workers
+        with self.lock:
+            self.val.value += 1
+
+    def reset(self):
+        # used by chief
+        with self.lock:
+            self.val.value = 0
+
+            
 class Page:
     def __init__(self, text, links):
         self.text = text
