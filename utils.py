@@ -81,7 +81,7 @@ def load_data_make_graph(datapath):
 
 
 # For seeing how long paths tend to be in a graph
-def print_paths(num_nodes, init_node, goal_node, G):
+def print_paths(num_nodes, init_node, goal_node, G, model_C, G_whole):
     arr = []
     for _ in range(200):
         init_node = random.randint(0, model_C['num_nodes']-1)
@@ -123,7 +123,6 @@ def fill_in_missing_hyp_params(model_C, goal_C, num_nodes, num_edges, num_node_f
     
 
 def select_hyp_params(grid):
-    episode_C, model_C, goal_C, agent_C, other_C  = {}, {}, {}, {}, {}
     def select_params(dic):
         return_dic = {}
         for name, values in list(dic.items()):
@@ -204,7 +203,7 @@ def random_sample(indices, batch_size):
 
 def layer_init_filter(m):
     if type(m) == nn.Linear:
-        torch.nn.init.xavier_uniform_(m.weight)
+        nn.init.xavier_uniform_(m.weight)
         m.bias.data.fill_(0)
     
     
@@ -218,21 +217,6 @@ def layer_init(layer, w_scale=1.0):
 def plot_grad_flow(layers, ave_grads, max_grads):
     '''Plots the gradients flowing through different layers in the net during training.
     Can be used for checking for possible gradient vanishing / exploding problems. '''
-
-    #     plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
-    #     plt.bar(np.arange(len(max_grads)), ave_grads, alpha=0.1, lw=1, color="b")
-    #     plt.hlines(0, 0, len(ave_grads)+1, lw=2, color="k" )
-    #     plt.xticks(range(0,len(ave_grads), 1), layers, rotation="vertical")
-    #     plt.xlim(left=0, right=len(ave_grads))
-    #     plt.ylim(bottom = -0.001, top=0.02) # zoom in on the lower gradient regions
-    #     plt.xlabel("Layers")
-    #     plt.ylabel("average gradient")
-    #     plt.title("Gradient flow")
-    #     plt.grid(True)
-    #     plt.legend([Line2D([0], [0], color="c", lw=4),
-    #                 Line2D([0], [0], color="b", lw=4),
-    #                 Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
-
     plt.plot(ave_grads, alpha=0.3, color="b")
     plt.hlines(0, 0, len(ave_grads) + 1, linewidth=1, color="k")
     plt.xticks(range(0, len(ave_grads), 1), layers, rotation="vertical")
@@ -241,5 +225,3 @@ def plot_grad_flow(layers, ave_grads, max_grads):
     plt.ylabel("average gradient")
     plt.title("Gradient flow")
     plt.grid(True)
-
-    

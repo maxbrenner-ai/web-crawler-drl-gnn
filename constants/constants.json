@@ -40,6 +40,7 @@
         "critic_agg_weight": 0.75
     },
     "other_C":{
+        "num_agents": 8,
         "reach_goal_rew": 10,
         "not_reach_goal_rew": -5
     }
