@@ -1,8 +1,8 @@
 {
     "episode_C":{
-        "num_train_rollouts": [20],
+        "num_train_rollouts": [500],
         "rollout_length": [128],
-        "eval_freq": [10],
+        "eval_freq": [50],
         "eval_num_eps": [100],
         "max_ep_steps": [10],
         "ignore_internal_nodes": [false],
@@ -32,12 +32,12 @@
         "minibatch_size": [32],
         "optimization_epochs": [10],
         "ppo_ratio_clip": [0.2],
-        "discount": [0.99, 0.95, 0.90],
+        "discount": [0.99],
         "learning_rate": [1e-3],
         "clip_grads": [true],
-        "gradient_clip": [5.0],
-        "value_loss_coef": [0.5, 0.2, 0.8, 0.32],
-        "critic_agg_weight": [0.75, 0.5, 0.4, 0.9]
+        "gradient_clip": [1.0],
+        "value_loss_coef": [1.0],
+        "critic_agg_weight": [0.75, 0.5, 1.0, 0.0]
     },
     "other_C":{
         "num_agents": [8],

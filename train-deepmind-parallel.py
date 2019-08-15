@@ -131,7 +131,7 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
 
 if __name__ == '__main__':
     device = torch.device('cpu')
-    G_whole, pages, node_feats, edges = load_data_make_graph_nervenet(
+    G_whole, pages, node_feats, edges = load_data_make_graph(
         'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features.pkl')
     # print('Num cores: {}'.format(mp.cpu_count()))
 

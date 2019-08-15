@@ -86,7 +86,7 @@ class UpdateModel(nn.Module):
 # Output: (N, o)  outputs for each node (softmax on classes)
 # If goal_opt == 2 then send in goal
 class ActorModel(nn.Module):
-    def __init__(self, hidden_size, output_size, goal_size=None):
+    def __init__(self, hidden_size, goal_size=None):
         super(ActorModel, self).__init__()
         self.name = 'actor'
         if goal_size:
@@ -97,7 +97,7 @@ class ActorModel(nn.Module):
             self.use_goal = False
             
         self.model = nn.Sequential(
-            nn.Linear(input_size, output_size)
+            nn.Linear(input_size, 1)
         )
         self.model.apply(layer_init_filter)
 
@@ -114,7 +114,7 @@ class ActorModel(nn.Module):
 # Output: ()  state value
 # If goal_opt == 2 then send in goal
 class CriticModel(nn.Module):
-    def __init__(self, hidden_size, output_size, weight, goal_size=None):
+    def __init__(self, hidden_size, weight, goal_size=None):
         super(CriticModel, self).__init__()
         self.name = 'actor'
         self.weight = weight
@@ -126,7 +126,7 @@ class CriticModel(nn.Module):
             self.use_goal = False
             
         self.model = nn.Sequential(
-            nn.Linear(input_size, output_size)
+            nn.Linear(input_size, 1)
         )
         self.model.apply(layer_init_filter)
 
@@ -176,8 +176,8 @@ class NerveNet_GNN(nn.Module):
         self.input_model = InputModel(feat_size, hidden_size).to(device)
         self.message_model = MessageModel(hidden_size, message_size).to(device)
         self.update_model = UpdateModel(message_size, hidden_size, update_goal_size).to(device)
-        self.actor_model = ActorModel(hidden_size, output_size, output_goal_size).to(device)
-        self.critic_model = CriticModel(hidden_size, output_size, critic_agg_weight, output_goal_size).to(device)
+        self.actor_model = ActorModel(hidden_size, output_goal_size).to(device)
+        self.critic_model = CriticModel(hidden_size, critic_agg_weight, output_goal_size).to(device)
         
         self.models = [self.input_model, self.message_model, self.update_model, self.actor_model, self.critic_model]
 

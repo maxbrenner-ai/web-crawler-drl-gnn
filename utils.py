@@ -53,7 +53,7 @@ class Page:
         self.feats = None
         
 
-def load_data_make_graph(datapath):
+def load_data_make_graph_nervenet(datapath):
     # Load the wiki-dict i want
     with open(datapath, 'rb') as f:
         pages = pickle.load(f)
@@ -77,6 +77,33 @@ def load_data_make_graph(datapath):
     G_whole = nx.DiGraph()
     G_whole.add_edges_from(edges)
     
+    return G_whole, pages, node_feats, edges
+
+
+def load_data_make_graph_deepmind(datapath):
+    # Load the wiki-dict i want
+    with open(datapath, 'rb') as f:
+        pages = pickle.load(f)
+    # Convert to ordered dict so i can use indices to refer to pages
+    # Convert pages to ordered dict
+    pages = OrderedDict(pages)
+    # Add indices and get feats for each page
+    node_feats = []
+    for indx, (title, obj) in enumerate(pages.items()):
+        obj.indx = indx
+        node_feats.append(obj.feats)
+    node_feats = np.stack(node_feats)
+    # Make edges for graph generation
+    edges = []
+    for title, obj in pages.items():
+        for link in obj.links:
+            in_node = obj.indx
+            out_node = pages[link].indx
+            edges.append((in_node, out_node))
+    # Make whole graph
+    G_whole = nx.DiGraph()
+    G_whole.add_edges_from(edges)
+
     return G_whole, pages, node_feats, edges
 
 

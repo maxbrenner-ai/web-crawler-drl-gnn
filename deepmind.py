@@ -1,139 +1,201 @@
 import torch.nn as nn
 import torch
 import numpy as np
-from gnn import GNN
+from utils import plot_grad_flow, layer_init_filter
 
 
 # Input: (N, f_n)
 # Output: (N, h_n)
 class NodeInputModel(nn.Module):
-    def __init__(self, num_nodes, node_feat_size, node_hidden_size):
+    def __init__(self, node_feat_size, node_hidden_size):
         super(NodeInputModel, self).__init__()
-        self.num_nodes = num_nodes
-        self.node_feat_size = node_feat_size
-        self.node_hidden_size = node_hidden_size
+        self.name = 'node_input'
         self.model = nn.Sequential(
-            nn.Linear(self.node_feat_size, self.node_hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.Linear(node_feat_size, node_hidden_size),
+            nn.ReLU()
         )
+        self.model.apply(layer_init_filter)
 
     def forward(self, nodes):
-        assert nodes.shape == (self.num_nodes, self.node_feat_size)
         hidden_states = self.model(nodes)
-        assert hidden_states.shape == (self.num_nodes, self.node_hidden_size)
         return hidden_states
 
 
 # Input: (E, f_e)
 # Output: (E, h_e)
 class EdgeInputModel(nn.Module):
-    def __init__(self, num_edges, edge_feat_size, edge_hidden_size):
+    def __init__(self, edge_feat_size, edge_hidden_size):
         super(EdgeInputModel, self).__init__()
-        self.num_edges = num_edges
-        self.edge_feat_size = edge_feat_size
-        self.edge_hidden_size = edge_hidden_size
+        self.name = 'edge_input'
         self.model = nn.Sequential(
-            nn.Linear(self.edge_feat_size, self.edge_hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.Linear(edge_feat_size, edge_hidden_size),
+            nn.ReLU()
         )
+        self.model.apply(layer_init_filter)
 
     def forward(self, edges):
-        assert edges.shape == (self.num_edges, self.edge_feat_size)
         hidden_states = self.model(edges)
-        assert hidden_states.shape == (self.num_edges, self.edge_hidden_size)
         return hidden_states
 
 
 # Input: (E, h_n + h_n + h_e)  # in node, out node and edge hidden states
 # Output: (E, h_e)
 class EdgeUpdateModel(nn.Module):
-    def __init__(self, num_edges, node_hidden_size, edge_hidden_size):
+    def __init__(self, node_hidden_size, edge_hidden_size):
         super(EdgeUpdateModel, self).__init__()
-        self.num_edges = num_edges
-        self.node_hidden_size = node_hidden_size
-        self.edge_hidden_size = edge_hidden_size
-        self.input_shape_cols = 2 * self.node_hidden_size + self.edge_hidden_size
+        self.name = 'edge_update'
+        self.input_shape_cols = 2 * node_hidden_size + edge_hidden_size
         self.model = nn.Sequential(
-            nn.Linear(self.input_shape_cols, self.edge_hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.Linear(self.input_shape_cols, edge_hidden_size),
+            nn.ReLU()
         )
+        self.model.apply(layer_init_filter)
 
     def forward(self, send_nodes, rec_nodes, edges):
-        assert send_nodes.shape == (self.num_edges, self.node_hidden_size)
-        assert rec_nodes.shape == (self.num_edges, self.node_hidden_size)
-        assert edges.shape == (self.num_edges, self.edge_hidden_size)
         concat = torch.cat([send_nodes, rec_nodes, edges], dim=1)
-        assert concat.shape == (self.num_edges, self.input_shape_cols)
         new_edges = self.model(concat)
-        assert new_edges.shape == (self.num_edges, self.edge_hidden_size)
         return new_edges
 
 
 # Input: (N, h_n + h_e)  # node, in-edge sum agg (ie out-node)
 # Output: (N, h_n)
 class NodeUpdateModel(nn.Module):
-    def __init__(self, num_nodes, node_hidden_size, edge_hidden_size):
+    def __init__(self, node_hidden_size, edge_hidden_size, goal_size=None):
         super(NodeUpdateModel, self).__init__()
-        self.num_nodes = num_nodes
-        self.node_hidden_size = node_hidden_size
-        self.edge_hidden_size = edge_hidden_size
-        self.input_size = self.node_hidden_size + self.edge_hidden_size
+        self.name = 'node_update'
+        if goal_size:
+            input_size = node_hidden_size + edge_hidden_size + goal_size
+            self.use_goal = True
+        else:
+            input_size = node_hidden_size + edge_hidden_size
+            self.use_goal = False
         self.model = nn.Sequential(
-            nn.Linear(self.input_size, self.node_hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.5)
+            nn.Linear(input_size, node_hidden_size),
+            nn.ReLU()
         )
+        self.model.apply(layer_init_filter)
 
-    def forward(self, nodes, in_edges):
-        assert nodes.shape == (self.num_nodes, self.node_hidden_size)
-        assert in_edges.shape == (self.num_nodes, self.edge_hidden_size)
-        concat = torch.cat([nodes, in_edges], dim=1)
-        assert concat.shape == (self.num_nodes, self.input_size)
+    def forward(self, nodes, in_edges, goal):
+        if self.use_goal:
+            concat = torch.cat([nodes, in_edges, goal], dim=1)
+        else:
+            concat = torch.cat([nodes, in_edges], dim=1)
         new_nodes = self.model(concat)
-        assert new_nodes.shape == (self.num_nodes, self.node_hidden_size)
         return new_nodes
 
 
-# Input: (N, h_n)  updated node hidden states
+# Input: (N, h)  updated node hidden states
 # Output: (N, o)  outputs for each node (softmax on classes)
-class OutputModel(nn.Module):
-    def __init__(self, num_nodes, node_hidden_size, output_size):
-        super(OutputModel, self).__init__()
-        self.num_nodes = num_nodes
-        self.node_hidden_size = node_hidden_size
-        self.output_size = output_size
-        self.model = nn.Sequential(
-            nn.Linear(self.node_hidden_size, self.output_size)
-        )
+# If goal_opt == 2 then send in goal
+class ActorModel(nn.Module):
+    def __init__(self, hidden_size, goal_size=None):
+        super(ActorModel, self).__init__()
+        self.name = 'actor'
+        if goal_size:
+            input_size = hidden_size + goal_size
+            self.use_goal = True
+        else:
+            input_size = hidden_size
+            self.use_goal = False
 
-    def forward(self, nodes):
-        assert nodes.shape == (self.num_nodes, self.node_hidden_size)
-        outputs = self.model(nodes)
-        assert outputs.shape == (self.num_nodes, self.output_size)
+        self.model = nn.Sequential(
+            nn.Linear(input_size, 1)
+        )
+        self.model.apply(layer_init_filter)
+
+    def forward(self, nodes, goal):
+        if self.use_goal:
+            concat = torch.cat([nodes, goal], dim=1)
+        else:
+            concat = nodes
+        outputs = self.model(concat)
         return outputs
 
 
-class Deepmind_GNN(GNN):
-    def __init__(self, num_nodes, num_edges, node_feat_size, edge_feat_size,
-                 node_hidden_size, edge_hidden_size, output_size):
+# Input: (N, h)  updated node hidden states
+# Output: ()  state value
+# If goal_opt == 2 then send in goal
+class CriticModel(nn.Module):
+    def __init__(self, hidden_size, weight, goal_size=None):
+        super(CriticModel, self).__init__()
+        self.name = 'actor'
+        self.weight = weight
+        if goal_size:
+            input_size = hidden_size + goal_size
+            self.use_goal = True
+        else:
+            input_size = hidden_size
+            self.use_goal = False
+
+        self.model = nn.Sequential(
+            nn.Linear(input_size, 1)
+        )
+        self.model.apply(layer_init_filter)
+
+    def forward(self, nodes, goal, num_nodes):
+        if self.use_goal:
+            concat = torch.cat([nodes, goal], dim=1)
+        else:
+            concat = nodes
+        outputs_all = self.model(concat).flatten()
+        # Cut up by num nodes per state
+        values = []
+        start_indx = 0
+        for n in num_nodes:
+            outputs = outputs_all[start_indx:start_indx + n]
+            start_indx += n
+            # Get the mean and max of the outputs
+            mean_out = outputs.mean()
+            max_out = outputs.max()
+            # Weight the value between the mean and max
+            value = max_out * self.weight + mean_out * (1. - self.weight)
+            values.append(value)
+            assert value.shape == (), 'shape: {}'.format(value.shape)
+        values_tensor = torch.stack(values)
+        assert values_tensor.shape == (len(num_nodes),), values_tensor.shape
+        return values_tensor
+
+
+class Deepmind_GNN(nn.Module):
+    def __init__(self, node_feat_size, edge_feat_size, node_hidden_size, edge_hidden_size, goal_size, goal_opt, critic_agg_weight, device):
         super(Deepmind_GNN, self).__init__()
 
-        self.num_nodes = num_nodes
-        self.num_edges = num_edges
-        self.node_feat_size = node_feat_size
-        self.edge_feat_size = edge_feat_size
-        self.node_hidden_size = node_hidden_size
-        self.edge_hidden_size = edge_hidden_size
-        self.output_size = output_size
+        self.device = device
 
-        self.node_input_model = NodeInputModel(num_nodes, node_feat_size, node_hidden_size)
-        self.edge_input_model = EdgeInputModel(num_edges, edge_feat_size, edge_hidden_size)
-        self.edge_update_model = EdgeUpdateModel(num_edges, node_hidden_size, edge_hidden_size)
-        self.node_update_model = NodeUpdateModel(num_nodes, node_hidden_size, edge_hidden_size)
-        self.output_model = OutputModel(num_nodes, node_hidden_size, output_size)
+        # self.node_feat_size = node_feat_size
+        # self.edge_feat_size = edge_feat_size
+        # self.node_hidden_size = node_hidden_size
+        self.edge_hidden_size = edge_hidden_size
+
+        update_goal_size = None
+        output_goal_size = None
+        if goal_opt == 1:
+            update_goal_size = goal_size
+        elif goal_opt == 2:
+            output_goal_size = goal_size
+
+        self.node_input_model = NodeInputModel(node_feat_size, node_hidden_size).to(device)
+        self.edge_input_model = EdgeInputModel(edge_feat_size, edge_hidden_size).to(device)
+        self.edge_update_model = EdgeUpdateModel(node_hidden_size, edge_hidden_size).to(device)
+        self.node_update_model = NodeUpdateModel(node_hidden_size, edge_hidden_size, update_goal_size).to(device)
+        self.actor_model = ActorModel(node_hidden_size, output_goal_size).to(device)
+        self.critic_model = CriticModel(node_hidden_size, critic_agg_weight, output_goal_size).to(device)
+
+        self.models = [self.node_input_model, self.edge_input_model, self.edge_update_model, self.node_update_model, self.actor_model, self.critic_model]
+
+    # edge tuples is a list of lists of all edges in terms if in-node indx, and out-node indx
+    # node_states is a list of node states fr each state (graph)
+    # edge_states similarly is a list of edge states for each state (graph)
+    def _update_edges_all(self, edge_tuples, node_states, edge_states):
+        num_states = len(edge_tuples)
+        in_stacks, out_stacks = [], []
+        for edge_t, nodes, edges in zip(edge_tuples, node_states, edge_tuples):
+            agg_stack_in, agg_stack_out = self._update_edges(edge_t, nodes, edges)
+            in_stacks.append(agg_stack_in)
+            out_stacks.append(agg_stack_out)
+        in_stack = torch.cat(in_stacks)
+        out_stack = torch.cat(out_stacks)
+        return self.edge_update_model(in_stack, out_stack, edge_states)
 
     # edge_tuples contains a list of all edges in terms of in-node indx, and out-node indx
     def _update_edges(self, edge_tuples, node_states, edge_states):
@@ -146,12 +208,23 @@ class Deepmind_GNN(GNN):
             out_agg.append(node_states[out_node])
         in_stack = torch.stack(in_agg)
         out_stack = torch.stack(out_agg)
-        return self.edge_update_model(in_stack, out_stack, edge_states)
+        return in_stack, out_stack
+
+    # in_edges_list is a list of list of lists of edge indices
+    # node_states is a list of each states (graphs) node states
+    # edge_states is a list of each states (graphs) edge states
+    def _update_nodes_all(self, in_edges_list, node_states, edge_states, goal):
+        num_states = len(in_edges_list)
+        stacks = []
+        for in_edges, nodes, edges in zip(in_edges_list, node_states, edge_states):
+            agg_stack = self._update_nodes(in_edges, nodes, edges)
+            stacks.append(agg_stack)
+        stack = torch.cat(stacks)
+        return self.node_update_model(node_states, stack, goal)
 
     # in_edges_list is a list of lists of the edge indxs of in-edges to a node, if empty then append all zeros
     def _update_nodes(self, in_edges_list, node_states, edge_states):
         agg = []
-        assert len(in_edges_list) == self.num_nodes
         for in_edges in in_edges_list:
             if len(in_edges) > 0:
                 in_edge_states = edge_states[in_edges, :]
@@ -160,13 +233,12 @@ class Deepmind_GNN(GNN):
                 assert agg_in_edge_states.shape == (self.edge_hidden_size,)
                 agg.append(agg_in_edge_states)
             else:
-                agg.append(torch.zeros(self.edge_hidden_size))
+                agg.append(torch.zeros(self.edge_hidden_size, device=self.device, requires_grad=True, dtype=torch.float))
         stack = torch.stack(agg)
-        assert stack.shape == (self.num_nodes, self.edge_hidden_size)
-        return self.node_update_model(node_states, stack)
+        return stack
 
     # Propogate: assumes feats sent in at start of episode/epoch
-    def forward(self, node_inputs, edge_inputs, edge_tuples, in_edge_list, send_input, get_output):
+    def forward(self, node_inputs, edge_inputs, edge_tuples, in_edge_list, send_input, get_output, goal, num_nodes, actions=None):
         # Get initial hidden states ------
         if send_input:
             node_states = self.node_input_model(node_inputs)
@@ -177,24 +249,60 @@ class Deepmind_GNN(GNN):
         # Update edges ------
         edge_updates = self._update_edges(edge_tuples, node_states, edge_states)
         # Update nodes ------
-        node_updates = self._update_nodes(in_edge_list, node_states, edge_updates)  # Send in updated edge updates
+        node_updates = self._update_nodes_all(in_edge_list, node_states, edge_updates, goal)  # Send in updated edge updates
         # Get outputs if need to ------
         if get_output:
-            outputs = self.output_model(node_updates)
-            return node_updates, edge_updates, outputs
+            v = self.critic_model(node_updates, goal, num_nodes).unsqueeze(-1)
+
+            logits_all = self.actor_model(node_updates, goal).flatten()
+            assert logits_all.shape == (node_inputs.shape[0],)
+            log_prob_all, entropy_all, actions_all = [], [], []
+            start_indx = 0
+            for i, n in enumerate(num_nodes):
+                logits = logits_all[start_indx:start_indx + n]
+                action = actions[i] if actions is not None else None
+                lp, e, a = self._gather_dist_values(logits, action)
+                log_prob_all.append(lp);entropy_all.append(e);actions_all.append(a)
+                start_indx += n
+            actions_tensor = torch.stack(actions_all)
+            log_prob_tensor = torch.stack(log_prob_all).unsqueeze(-1)
+            entropy_tensor = torch.stack(entropy_all).unsqueeze(-1)
+
+            assert actions_tensor.shape == (len(num_nodes),)
+            assert log_prob_tensor.shape == (len(num_nodes), 1)
+            assert entropy_tensor.shape == (len(num_nodes), 1)
+            assert v.shape == (len(num_nodes), 1)
+
+            return node_updates, edge_updates, {'a': actions_tensor, 'log_pi_a': log_prob_tensor, 'ent': entropy_tensor, 'v': v}
         return node_updates, edge_updates, None
 
-    # Outputs: (N_train, o) tensor
-    # Targets: (N_train,) tensor of the classes
-    def backward(self, outputs, targets):
-        # assert outputs.shape == (num_train, o)
-        # assert targets.shape == (num_train,)
-        loss = self.loss(outputs, targets)
-        loss.backward()
-        # Graph gradient flow
-        self.graph_grads([self.node_input_model,
-                          self.edge_input_model,
-                          self.edge_update_model,
-                          self.node_update_model,
-                          self.output_model])
-        return loss.data.tolist()
+    def graph_grads(self):
+        layers, avg_grads, max_grads = [], [], []
+        for n, p in self.named_parameters():
+            if (p.requires_grad) and ("bias" not in n):
+                layers.append(n)
+                avg_grads.append(p.grad.abs().mean())
+                max_grads.append(p.grad.abs().max())
+        plot_grad_flow(layers, avg_grads, max_grads)
+
+    def print_layer_weights(self, which='all'):
+        if which == 'all':
+            models = self.models
+        elif which == 'node_input':
+            models = [self.node_input_model]
+        elif which == 'edge_input':
+            models = [self.edge_input_model]
+        elif which == 'node_update':
+            models = [self.node_update_model]
+        elif which == 'edge_update':
+            models = [self.edge_update_model]
+        elif which == 'actor':
+            models = [self.actor_model]
+        elif which == 'critic':
+            models = [self.critic_model]
+
+        for model in models:
+            print('Model: ' + model.name)
+            for n, p in model.named_parameters():
+                if (p.requires_grad) and ("bias" not in n):
+                    print(str(n) + ': ' + str(p[0][:10]))
