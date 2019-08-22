@@ -51,6 +51,7 @@ class Page:
         self.in_links = []
         self.indx = None  # Relative to the ordered dict below
         self.feats = None
+        self.links_feats = None  # dict of each out links features, Key: out-node title, Value: edge feature vector
         
 
 def load_data_make_graph_nervenet(datapath):
@@ -95,16 +96,21 @@ def load_data_make_graph_deepmind(datapath):
     node_feats = np.stack(node_feats)
     # Make edges for graph generation
     edges = []
+    e_indx = 0
+    edge_feats = []
     for title, obj in pages.items():
         for link in obj.links:
             in_node = obj.indx
             out_node = pages[link].indx
-            edges.append((in_node, out_node))
+            edges.append((in_node, out_node, {'indx': e_indx}))
+            edge_feats.append(obj.links_feats[link])
+            e_indx += 1
+    edge_feats = np.stack(edge_feats)
     # Make whole graph
     G_whole = nx.DiGraph()
     G_whole.add_edges_from(edges)
 
-    return G_whole, pages, node_feats, edges
+    return G_whole, pages, node_feats, edge_feats, edges
 
 
 # For seeing how long paths tend to be in a graph
@@ -134,14 +140,12 @@ def load_constants(filepath):
 
 
 # Some of the constants from the constants file need to be filled in 
-def fill_in_missing_hyp_params(model_C, goal_C, num_nodes, num_edges, num_node_feats):
+def fill_in_missing_hyp_params(model_C, goal_C, num_nodes, num_edges, node_feats, edge_feats):
     model_C['num_nodes'] = num_nodes
     model_C['num_edges'] = num_edges
-    model_C['node_feat_size'] = num_node_feats
-    assert model_C['nervenet'], 'Deepmind arch not implemented yet!'
-    model_C['edge_feat_size'] = None
-    model_C['edge_hidden_size'] = None
-    
+    model_C['node_feat_size'] = node_feats
+    model_C['edge_feat_size'] = edge_feats
+
     if goal_C['goal_input_layer']:
         goal_size = model_C['node_hidden_size']
     else:

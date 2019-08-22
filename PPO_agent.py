@@ -1,4 +1,5 @@
 from nervenet import NerveNet_GNN
+from deepmind import Deepmind_GNN
 from copy import deepcopy
 import numpy as np
 from utils import Storage, tensor, random_sample, ensure_shared_grads
@@ -9,24 +10,37 @@ import torch.nn as nn
 
 class PPOAgent:
     def __init__(self, args, env, shared_gnn, optimizer):
-        self.episode_C, self.model_C, self.goal_C, self.agent_C, self.other_C, self.device, self.G_whole, self.pages, \
-        self.node_feats, self.edges = args
+        if args[1]['nervenet']:
+            self.episode_C, self.model_C, self.goal_C, self.agent_C, self.other_C, self.device, self.G_whole, self.pages, \
+            self.node_feats, self.edges = args
 
-        self.gnn = NerveNet_GNN(self.model_C['node_feat_size'], self.model_C['node_hidden_size'],
-                                self.model_C['message_size'], self.model_C['output_size'],
-                                self.goal_C['goal_size'], self.goal_C['goal_opt'], self.agent_C['critic_agg_weight'],
-                                self.device).to(self.device)
+            self.gnn = NerveNet_GNN(self.model_C['node_feat_size'], self.model_C['node_hidden_size'],
+                                    self.model_C['message_size'], self.model_C['output_size'],
+                                    self.goal_C['goal_size'], self.goal_C['goal_opt'], self.agent_C['critic_agg_weight'],
+                                    self.device).to(self.device)
+        else:
+            self.episode_C, self.model_C, self.goal_C, self.agent_C, self.other_C, self.device, self.G_whole, self.pages, \
+            self.node_feats, self.edge_feats, self.edges = args
+
+            self.gnn = Deepmind_GNN(self.model_C['node_feat_size'], self.model_C['edge_feat_size'],
+                                    self.model_C['node_hidden_size'], self.model_C['edge_hidden_size'],
+                                    self.goal_C['goal_size'], self.goal_C['goal_opt'],
+                                    self.agent_C['critic_agg_weight'],
+                                    self.device).to(self.device)
+
         self.shared_gnn = shared_gnn
         self.env = env
         self.state = self.env.reset()
         self.ep_step = 0
-        #         self.opt = torch.optim.Adam(self.gnn.parameters(), agent_C['learning_rate'])
         self.opt = optimizer
         self.gnn.eval()
 
     def _eval_episode(self, test_step):
         state = self.env.reset()
-        shortest_path_length = state[4]
+        if self.model_C['nervenet']:
+            shortest_path_length = state[4]
+        else:
+            shortest_path_length = state[5]
         ep_rew = 0
         for step in range(self.episode_C['max_ep_steps']):
             prediction = self.env.propagate(self.gnn, [state])
@@ -146,6 +160,8 @@ class PPOAgent:
                 prediction = self.env.propagate(self.gnn, sampled_states, sampled_actions)
                 end_pred_time = time.time()
                 train_pred_times.append(end_pred_time - start_pred_time)
+
+                # assert True == False
 
                 # Calc. Loss
                 #                 self.gnn.train()

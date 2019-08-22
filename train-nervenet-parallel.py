@@ -92,18 +92,21 @@ def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, no
         p.join()
 
 
-def run_normal():
-    exp_start = time.time()
-    # Load constants
-    constants = load_constants('constants/constants.json')
-    episode_C, model_C, goal_C, agent_C, other_C = constants['episode_C'], constants['model_C'], constants['goal_C'], \
-                                                   constants['agent_C'], constants['other_C']
-    # Fill in missing values
-    fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1])
+def run_normal(num_experiments):
+    for exp in range(num_experiments):
+        print(' --- Running experiment {} --- '.format(exp))
 
-    run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, None)
-    exp_end = time.time()
-    print('Time taken (m): {:.2f}'.format((exp_end - exp_start) / 60.))
+        exp_start = time.time()
+        # Load constants
+        constants = load_constants('constants/constants.json')
+        episode_C, model_C, goal_C, agent_C, other_C = constants['episode_C'], constants['model_C'], constants['goal_C'], \
+                                                       constants['agent_C'], constants['other_C']
+        # Fill in missing values
+        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1])
+
+        run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, None)
+        exp_end = time.time()
+        print('Time taken (m): {:.2f}'.format((exp_end - exp_start) / 60.))
 
 
 def run_random_search(num_diff_experiments, num_repeat_experiment):
@@ -113,7 +116,7 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
     for diff_experiment in range(num_diff_experiments):
         # First pick the hyp params to use
         episode_C, model_C, goal_C, agent_C, other_C = select_hyp_params(grid)
-        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1])
+        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], None)
 
         for same_experiment in range(num_repeat_experiment):
             # Load df for saving data
@@ -135,7 +138,7 @@ if __name__ == '__main__':
         'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features.pkl')
     # print('Num cores: {}'.format(mp.cpu_count()))
 
-    # run_normal()
+    # run_normal(num_experiments=50)
 
-    refresh_excel('run-data.xlsx')
+    # refresh_excel('run-data.xlsx')
     run_random_search(num_diff_experiments=100, num_repeat_experiment=3)

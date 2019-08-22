@@ -184,21 +184,40 @@ class Deepmind_GNN(nn.Module):
         self.models = [self.node_input_model, self.edge_input_model, self.edge_update_model, self.node_update_model, self.actor_model, self.critic_model]
 
     # edge tuples is a list of lists of all edges in terms if in-node indx, and out-node indx
-    # node_states is a list of node states fr each state (graph)
-    # edge_states similarly is a list of edge states for each state (graph)
-    def _update_edges_all(self, edge_tuples, node_states, edge_states):
+    # node_states is a stack of node states fr each state (graph)
+    # edge_states similarly is a stack of edge states for each state (graph)
+    # num_nodes is a list of the number of nodes in each state
+    def _update_edges_all(self, edge_tuples, node_states, edge_states, num_nodes):
+
+        # print('Checking update edges all...')
+        # print('edge tuples: {}'.format(edge_tuples))
+        # print('node states: {}'.format(node_states))
+        # print('edge states: {}'.format(edge_states))
+        # print('num nodes: {}'.format(num_nodes))
+
         num_states = len(edge_tuples)
+        assert len(edge_tuples) == len(num_nodes)
         in_stacks, out_stacks = [], []
-        for edge_t, nodes, edges in zip(edge_tuples, node_states, edge_tuples):
-            agg_stack_in, agg_stack_out = self._update_edges(edge_t, nodes, edges)
+        start_indx = 0
+        for edge_t, N in zip(edge_tuples, num_nodes):
+            nodes = node_states[start_indx:start_indx+N]
+            agg_stack_in, agg_stack_out = self._update_edges(edge_t, nodes)
             in_stacks.append(agg_stack_in)
             out_stacks.append(agg_stack_out)
+            start_indx += N
         in_stack = torch.cat(in_stacks)
         out_stack = torch.cat(out_stacks)
+
+        # print('in stach shape: {}'.format(in_stack.shape))
+        # print('in stack: {}'.format(in_stacks))
+        # print('out stack shape: {}'.format(out_stack.shape))
+        # print('out stack: {}'.format(out_stacks))
+        # print('...done with edge updates all ')
+
         return self.edge_update_model(in_stack, out_stack, edge_states)
 
     # edge_tuples contains a list of all edges in terms of in-node indx, and out-node indx
-    def _update_edges(self, edge_tuples, node_states, edge_states):
+    def _update_edges(self, edge_tuples, node_states):
         # Collect in and out nodes
         in_agg, out_agg = [], []
         for e_indx, edge in enumerate(edge_tuples):
@@ -213,17 +232,30 @@ class Deepmind_GNN(nn.Module):
     # in_edges_list is a list of list of lists of edge indices
     # node_states is a list of each states (graphs) node states
     # edge_states is a list of each states (graphs) edge states
-    def _update_nodes_all(self, in_edges_list, node_states, edge_states, goal):
+    def _update_nodes_all(self, in_edges_list, node_states, edge_states, goal, num_edges):
+
+        # print('start update nodes all...')
+        # print('edge states: {}'.format(edge_states))
+        # print('in edges list: {}'.format(in_edges_list))
+
         num_states = len(in_edges_list)
+        assert len(in_edges_list) == len(num_edges)
         stacks = []
-        for in_edges, nodes, edges in zip(in_edges_list, node_states, edge_states):
-            agg_stack = self._update_nodes(in_edges, nodes, edges)
+        start_indx = 0
+        for in_edges, E in zip(in_edges_list, num_edges):
+            edges = edge_states[start_indx:start_indx+E]
+            agg_stack = self._update_nodes(in_edges, edges)
             stacks.append(agg_stack)
-        stack = torch.cat(stacks)
-        return self.node_update_model(node_states, stack, goal)
+            start_indx += E
+        edge_stack = torch.cat(stacks)
+
+        # print('edge stack shape: {}'.format(edge_stack.shape))
+        # print('edge stack: {}'.format(edge_stack))
+
+        return self.node_update_model(node_states, edge_stack, goal)
 
     # in_edges_list is a list of lists of the edge indxs of in-edges to a node, if empty then append all zeros
-    def _update_nodes(self, in_edges_list, node_states, edge_states):
+    def _update_nodes(self, in_edges_list, edge_states):
         agg = []
         for in_edges in in_edges_list:
             if len(in_edges) > 0:
@@ -237,8 +269,25 @@ class Deepmind_GNN(nn.Module):
         stack = torch.stack(agg)
         return stack
 
+    def _gather_dist_values(self, logits, action):
+        dist = torch.distributions.Categorical(logits=logits)
+        if action is None:
+            action = dist.sample()
+        log_prob = dist.log_prob(action)
+        entropy = dist.entropy()
+        return log_prob, entropy, action
+
     # Propogate: assumes feats sent in at start of episode/epoch
-    def forward(self, node_inputs, edge_inputs, edge_tuples, in_edge_list, send_input, get_output, goal, num_nodes, actions=None):
+    def forward(self, node_inputs, edge_inputs, edge_tuples, in_edge_list, send_input, get_output, goal, num_nodes, num_edges, actions=None):
+        assert len(num_nodes) == len(num_nodes)
+
+        # print('\n\n\n\n----------------------------')
+        # print('num states: {}'.format(len(num_nodes)))
+        # print('num nodes: {}'.format(num_nodes))
+        # print('num edges: {}'.format(num_edges))
+        # print('input node states: {}'.format(node_inputs.shape))
+        # print('input edge states: {}'.format(edge_inputs.shape))
+
         # Get initial hidden states ------
         if send_input:
             node_states = self.node_input_model(node_inputs)
@@ -246,15 +295,30 @@ class Deepmind_GNN(nn.Module):
         else:
             node_states = node_inputs
             edge_states = edge_inputs
+
+        # print('node states: {}'.format(node_states.shape))
+        # print('edge states: {}'.format(edge_states.shape))
+
         # Update edges ------
-        edge_updates = self._update_edges(edge_tuples, node_states, edge_states)
+        edge_updates = self._update_edges_all(edge_tuples, node_states, edge_states, num_nodes)
+
+        # print('edge updates: {}'.format(edge_updates.shape))
+
         # Update nodes ------
-        node_updates = self._update_nodes_all(in_edge_list, node_states, edge_updates, goal)  # Send in updated edge updates
+        node_updates = self._update_nodes_all(in_edge_list, node_states, edge_updates, goal, num_edges)  # Send in updated edge updates
+
+        # print('node updates: {}'.format(node_updates.shape))
+
         # Get outputs if need to ------
         if get_output:
             v = self.critic_model(node_updates, goal, num_nodes).unsqueeze(-1)
 
+            # print('v: {}'.format(v.shape))
+
             logits_all = self.actor_model(node_updates, goal).flatten()
+
+            # print('logits all: {}'.format(logits_all.shape))
+
             assert logits_all.shape == (node_inputs.shape[0],)
             log_prob_all, entropy_all, actions_all = [], [], []
             start_indx = 0
@@ -267,13 +331,20 @@ class Deepmind_GNN(nn.Module):
             actions_tensor = torch.stack(actions_all)
             log_prob_tensor = torch.stack(log_prob_all).unsqueeze(-1)
             entropy_tensor = torch.stack(entropy_all).unsqueeze(-1)
+            #
+            # print('actions: {}'.format(actions_tensor.shape))
+            # print('log prob: {}'.format(log_prob_tensor.shape))
+            # print('entropy: {}'.format(entropy_tensor.shape))
 
             assert actions_tensor.shape == (len(num_nodes),)
             assert log_prob_tensor.shape == (len(num_nodes), 1)
             assert entropy_tensor.shape == (len(num_nodes), 1)
             assert v.shape == (len(num_nodes), 1)
 
+            # assert True == False
+
             return node_updates, edge_updates, {'a': actions_tensor, 'log_pi_a': log_prob_tensor, 'ent': entropy_tensor, 'v': v}
+
         return node_updates, edge_updates, None
 
     def graph_grads(self):
