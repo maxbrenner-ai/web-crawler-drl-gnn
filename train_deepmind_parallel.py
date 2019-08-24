@@ -1,15 +1,18 @@
-from nervenet import NerveNet_GNN
-from utils import *
-import torch.multiprocessing as mp
-from PPO_agent import PPOAgent
-from environment import Environment
 import time
+
+from PPO_agent import PPOAgent
+from environments.deepmind import Environment
+from utils import *
+from models.deepmind import Deepmind_GNN
 
 
 # target for multiprocess
 def train(id, shared_gnn, optimizer, rollout_counter, args):
-    episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges = args
-    agent = PPOAgent(args, Environment(args), shared_gnn, optimizer)
+    episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges = args
+    local_gnn = Deepmind_GNN(model_C['node_feat_size'], model_C['edge_feat_size'], model_C['node_hidden_size'],
+                              model_C['edge_hidden_size'], goal_C['goal_size'], goal_C['goal_opt'],
+                              agent_C['critic_agg_weight'], device).to(device)
+    agent = PPOAgent(args, Environment(args), shared_gnn, local_gnn, optimizer)
     train_step = 0
     rollout_times, batch_times, pred_times = [], [], []
     #     for r in range(episode_C['num_train_rollouts']+1):
@@ -26,8 +29,11 @@ def train(id, shared_gnn, optimizer, rollout_counter, args):
 # target for multiprocess
 def eval(shared_gnn, rollout_counter, args, df):
     time_start = time.time()
-    episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges = args
-    agent = PPOAgent(args, Environment(args), shared_gnn, None)
+    episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges = args
+    local_gnn = Deepmind_GNN(model_C['node_feat_size'], model_C['edge_feat_size'], model_C['node_hidden_size'],
+                              model_C['edge_hidden_size'], goal_C['goal_size'], goal_C['goal_opt'],
+                              agent_C['critic_agg_weight'], device).to(device)
+    agent = PPOAgent(args, Environment(args), shared_gnn, local_gnn, None)
     last_eval = 0
     run_info = {}  # based on the avg steps taken
     run_info['eval_ach_goal_perc'] = -1.; run_info['eval_avg_opt_steps'] = -1.; run_info['eval_avg_steps_taken'] = float('inf')
@@ -67,18 +73,16 @@ def eval(shared_gnn, rollout_counter, args, df):
             return
 
 
-def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, df):
-    shared_gnn = NerveNet_GNN(model_C['node_feat_size'], model_C['node_hidden_size'],
-                              model_C['message_size'], model_C['output_size'],
-                              goal_C['goal_size'], goal_C['goal_opt'], agent_C['critic_agg_weight'],
-                              device).to(device)
+def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges, df):
+    shared_gnn = Deepmind_GNN(model_C['node_feat_size'], model_C['edge_feat_size'], model_C['node_hidden_size'],
+                              model_C['edge_hidden_size'], goal_C['goal_size'], goal_C['goal_opt'],
+                              agent_C['critic_agg_weight'], device).to(device)
     shared_gnn.share_memory()
     optimizer = torch.optim.Adam(shared_gnn.parameters(), agent_C['learning_rate'])
-    #     optimizer.share_memory()
     rollout_counter = Counter()  # To keep track of all the rollouts amongst agents
     processes = []
 
-    args = (episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges)
+    args = (episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges)
     # Run eval agent
     p = mp.Process(target=eval, args=(shared_gnn, rollout_counter, args, df))
     p.start()
@@ -92,7 +96,7 @@ def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, no
         p.join()
 
 
-def run_normal(num_experiments):
+def run_normal(num_experiments=1):
     for exp in range(num_experiments):
         print(' --- Running experiment {} --- '.format(exp))
 
@@ -101,10 +105,13 @@ def run_normal(num_experiments):
         constants = load_constants('constants/constants.json')
         episode_C, model_C, goal_C, agent_C, other_C = constants['episode_C'], constants['model_C'], constants['goal_C'], \
                                                        constants['agent_C'], constants['other_C']
+        assert model_C['model_type'] == 'deepmind'
+        G_whole, pages, node_feats, edge_feats, edges = load_data_make_graph_deepmind(
+            get_data_path(other_C['node_feat_type']))
         # Fill in missing values
-        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1])
+        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], edge_feats.shape[1])
 
-        run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, None)
+        run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges, None)
         exp_end = time.time()
         print('Time taken (m): {:.2f}'.format((exp_end - exp_start) / 60.))
 
@@ -116,7 +123,10 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
     for diff_experiment in range(num_diff_experiments):
         # First pick the hyp params to use
         episode_C, model_C, goal_C, agent_C, other_C = select_hyp_params(grid)
-        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], None)
+        assert model_C['model_type'] == 'deepmind'
+        G_whole, pages, node_feats, edge_feats, edges = load_data_make_graph_deepmind(
+            get_data_path(other_C['node_feat_type']))
+        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], edge_feats.shape[1])
 
         for same_experiment in range(num_repeat_experiment):
             # Load df for saving data
@@ -126,7 +136,7 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
 
             print(' --- Running experiment {}.{} --- '.format(diff_experiment, same_experiment))
 
-            run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, df)
+            run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges, df)
 
             exp_end = time.time()
             print('Time taken (m): {:.2f}\n'.format((exp_end - exp_start) / 60.))
@@ -134,11 +144,10 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
 
 if __name__ == '__main__':
     device = torch.device('cpu')
-    G_whole, pages, node_feats, edges = load_data_make_graph_nervenet(
-        'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features.pkl')
+
     # print('Num cores: {}'.format(mp.cpu_count()))
 
-    # run_normal(num_experiments=50)
+    # run_normal(num_experiments=3)
 
-    # refresh_excel('run-data.xlsx')
+    refresh_excel('run-data.xlsx')
     run_random_search(num_diff_experiments=100, num_repeat_experiment=3)

@@ -12,6 +12,15 @@ import random
 import torch.multiprocessing as mp
 
 
+def get_data_path(node_feat_type):
+    if node_feat_type == 0:
+        return 'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features_title.pkl'
+    elif node_feat_type == 1:
+        return 'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features_soup.pkl'
+    else:
+        return 'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features_concat.pkl'
+
+
 # This assigns this agents grads to the shared grads at the very start
 def ensure_shared_grads(model, shared_model):
     for param, shared_param in zip(model.parameters(),

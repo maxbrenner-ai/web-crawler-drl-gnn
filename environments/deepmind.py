@@ -46,7 +46,6 @@ class Environment:
 
         return next_state, reward, done, achieved_goal
 
-    # todo: check
     # Deep copy everything before it goes into a state
     def _copy_state(self, G_curr, current_nodes, current_edges, goal_node, goal_feats, shortest_path_length, in_edges, edge_tuples):
         G_curr_copy = G_curr.copy()

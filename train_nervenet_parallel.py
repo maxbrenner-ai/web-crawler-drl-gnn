@@ -1,15 +1,35 @@
-from deepmind import Deepmind_GNN
-from utils import *
-import torch.multiprocessing as mp
-from PPO_agent import PPOAgent
-from environment_deepmind import Environment
 import time
+
+from PPO_agent import PPOAgent
+from environments.nervenet import Environment
+from utils import *
+from models.nervenet import NerveNet_GNN
+from models.no_stucture import NoStructure_baseline
+from models.fully_connected import FullyConnected_baseline
+
+
+def make_model(model_type, episode_C, model_C, goal_C, agent_C, other_C, device):
+    if model_type == 'nervenet':
+        return NerveNet_GNN(model_C['node_feat_size'], model_C['node_hidden_size'],
+                     model_C['message_size'], model_C['output_size'],
+                     goal_C['goal_size'], goal_C['goal_opt'], agent_C['critic_agg_weight'],
+                     device).to(device)
+    elif model_type == 'no_structure':
+        return NoStructure_baseline(model_C['node_feat_size'], model_C['node_hidden_size'],
+                                    goal_C['goal_size'], goal_C['goal_opt'], agent_C['critic_agg_weight'],
+                                    device).to(device)
+    elif model_type == 'fully_connected':
+        return FullyConnected_baseline(model_C['node_feat_size'], model_C['node_hidden_size'],
+                                       model_C['message_size'], goal_C['goal_size'], goal_C['goal_opt'],
+                                       agent_C['critic_agg_weight'], device).to(device)
+    assert True == False, 'didnt put in a valid model type'
 
 
 # target for multiprocess
 def train(id, shared_gnn, optimizer, rollout_counter, args):
-    episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges = args
-    agent = PPOAgent(args, Environment(args), shared_gnn, optimizer)
+    episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges = args
+    local_gnn = make_model(model_C['model_type'], episode_C, model_C, goal_C, agent_C, other_C, device)
+    agent = PPOAgent(args, Environment(args), shared_gnn, local_gnn, optimizer)
     train_step = 0
     rollout_times, batch_times, pred_times = [], [], []
     #     for r in range(episode_C['num_train_rollouts']+1):
@@ -26,8 +46,9 @@ def train(id, shared_gnn, optimizer, rollout_counter, args):
 # target for multiprocess
 def eval(shared_gnn, rollout_counter, args, df):
     time_start = time.time()
-    episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges = args
-    agent = PPOAgent(args, Environment(args), shared_gnn, None)
+    episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges = args
+    local_gnn = make_model(model_C['model_type'], episode_C, model_C, goal_C, agent_C, other_C, device)
+    agent = PPOAgent(args, Environment(args), shared_gnn, local_gnn, None)
     last_eval = 0
     run_info = {}  # based on the avg steps taken
     run_info['eval_ach_goal_perc'] = -1.; run_info['eval_avg_opt_steps'] = -1.; run_info['eval_avg_steps_taken'] = float('inf')
@@ -67,20 +88,19 @@ def eval(shared_gnn, rollout_counter, args, df):
             return
 
 
-def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges, df):
-    shared_gnn = Deepmind_GNN(model_C['node_feat_size'], model_C['edge_feat_size'], model_C['node_hidden_size'],
-                              model_C['edge_hidden_size'], goal_C['goal_size'], goal_C['goal_opt'],
-                              agent_C['critic_agg_weight'], device).to(device)
+def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, df):
+    shared_gnn = make_model(model_C['model_type'], episode_C, model_C, goal_C, agent_C, other_C, device)
     shared_gnn.share_memory()
     optimizer = torch.optim.Adam(shared_gnn.parameters(), agent_C['learning_rate'])
+    #     optimizer.share_memory()
     rollout_counter = Counter()  # To keep track of all the rollouts amongst agents
     processes = []
 
-    args = (episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges)
+    args = (episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges)
     # Run eval agent
-    # p = mp.Process(target=eval, args=(shared_gnn, rollout_counter, args, df))
-    # p.start()
-    # processes.append(p)
+    p = mp.Process(target=eval, args=(shared_gnn, rollout_counter, args, df))
+    p.start()
+    processes.append(p)
     # Run training agents
     for i in range(other_C['num_agents']):
         p = mp.Process(target=train, args=(i, shared_gnn, optimizer, rollout_counter, args))
@@ -90,7 +110,7 @@ def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, no
         p.join()
 
 
-def run_normal(num_experiments=1):
+def run_normal(num_experiments):
     for exp in range(num_experiments):
         print(' --- Running experiment {} --- '.format(exp))
 
@@ -99,10 +119,12 @@ def run_normal(num_experiments=1):
         constants = load_constants('constants/constants.json')
         episode_C, model_C, goal_C, agent_C, other_C = constants['episode_C'], constants['model_C'], constants['goal_C'], \
                                                        constants['agent_C'], constants['other_C']
+        assert model_C['model_type'] != 'deepmind'
+        G_whole, pages, node_feats, edges = load_data_make_graph_nervenet(get_data_path(other_C['node_feat_type']))
         # Fill in missing values
-        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], edge_feats.shape[1])
+        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], None)
 
-        run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges, None)
+        run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, None)
         exp_end = time.time()
         print('Time taken (m): {:.2f}'.format((exp_end - exp_start) / 60.))
 
@@ -114,7 +136,9 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
     for diff_experiment in range(num_diff_experiments):
         # First pick the hyp params to use
         episode_C, model_C, goal_C, agent_C, other_C = select_hyp_params(grid)
-        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], edge_feats.shape[1])
+        assert model_C['model_type'] != 'deepmind'
+        G_whole, pages, node_feats, edges = load_data_make_graph_nervenet(get_data_path(other_C['node_feat_type']))
+        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], None)
 
         for same_experiment in range(num_repeat_experiment):
             # Load df for saving data
@@ -124,7 +148,7 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
 
             print(' --- Running experiment {}.{} --- '.format(diff_experiment, same_experiment))
 
-            run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges, df)
+            run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, df)
 
             exp_end = time.time()
             print('Time taken (m): {:.2f}\n'.format((exp_end - exp_start) / 60.))
@@ -132,12 +156,9 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
 
 if __name__ == '__main__':
     device = torch.device('cpu')
-    G_whole, pages, node_feats, edge_feats, edges = load_data_make_graph_deepmind(
-        'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features.pkl')
-
     # print('Num cores: {}'.format(mp.cpu_count()))
 
-    run_normal(num_experiments=1)
+    # run_normal(num_experiments=3)
 
-    # refresh_excel('run-data.xlsx')
-    # run_random_search(num_diff_experiments=100, num_repeat_experiment=3)
+    refresh_excel('run-data.xlsx')
+    run_random_search(num_diff_experiments=100, num_repeat_experiment=3)

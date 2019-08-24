@@ -11,13 +11,13 @@
         "shortest_path_range_allowed_MAX": 6
     },
     "model_C":{
-        "nervenet": false,
+        "model_type": "no_structure",
         "num_nodes": null,
         "num_edges": null,
         "node_feat_size": null,
         "edge_feat_size": null,
-        "node_hidden_size": 8,
-        "edge_hidden_size": 4,
+        "node_hidden_size": 32,
+        "edge_hidden_size": 32,
         "message_size": 32,
         "output_size": 1
     },
@@ -29,7 +29,7 @@
     "agent_C":{
         "gae_tau": 0.95,
         "entropy_weight": 0.01,
-        "minibatch_size": 2,
+        "minibatch_size": 32,
         "optimization_epochs": 10,
         "ppo_ratio_clip": 0.2,
         "discount": 0.99,
@@ -40,8 +40,9 @@
         "critic_agg_weight": 0.75
     },
     "other_C":{
-        "num_agents": 1,
+        "num_agents": 8,
         "reach_goal_rew": 10,
-        "not_reach_goal_rew": -5
+        "not_reach_goal_rew": -5,
+        "node_feat_type": 0
     }
 }
