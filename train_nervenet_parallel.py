@@ -57,10 +57,10 @@ def eval(shared_gnn, rollout_counter, args, df):
         if curr_r % episode_C['eval_freq'] == 0 and last_eval != curr_r:
             last_eval = curr_r
             avg_rew, max_rew, min_rew, ach_perc, avg_opt_steps, avg_steps_taken = agent.eval_episodes()
-            if df is None:  # Only print each one if df is none which means this isn't a hyp param search run
-                print(
-                    'Testing summary at rollout {}: Avg ep rew: {:.2f}  Max ep rew: {}  Min ep rew: {}  Achieved goal percent: {:.2f}  Avg opt steps: {:.2f}  Avg steps taken: {:.2f}\n'.format(
-                        curr_r, avg_rew, max_rew, min_rew, ach_perc, avg_opt_steps, avg_steps_taken))
+            # if df is None:  # Only print each one if df is none which means this isn't a hyp param search run
+            print(
+                'Testing summary at rollout {}: Avg ep rew: {:.2f}  Max ep rew: {}  Min ep rew: {}  Achieved goal percent: {:.2f}  Avg opt steps: {:.2f}  Avg steps taken: {:.2f}\n'.format(
+                    curr_r, avg_rew, max_rew, min_rew, ach_perc, avg_opt_steps, avg_steps_taken))
             if avg_steps_taken < run_info['eval_avg_steps_taken']:
                 run_info['eval_ach_goal_perc'] = ach_perc
                 run_info['eval_avg_opt_steps'] = avg_opt_steps
@@ -88,7 +88,7 @@ def eval(shared_gnn, rollout_counter, args, df):
             return
 
 
-def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, df):
+def run_nervenet(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, df):
     shared_gnn = make_model(model_C['model_type'], episode_C, model_C, goal_C, agent_C, other_C, device)
     shared_gnn.share_memory()
     optimizer = torch.optim.Adam(shared_gnn.parameters(), agent_C['learning_rate'])
@@ -108,57 +108,3 @@ def run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, no
         processes.append(p)
     for p in processes:
         p.join()
-
-
-def run_normal(num_experiments):
-    for exp in range(num_experiments):
-        print(' --- Running experiment {} --- '.format(exp))
-
-        exp_start = time.time()
-        # Load constants
-        constants = load_constants('constants/constants.json')
-        episode_C, model_C, goal_C, agent_C, other_C = constants['episode_C'], constants['model_C'], constants['goal_C'], \
-                                                       constants['agent_C'], constants['other_C']
-        assert model_C['model_type'] != 'deepmind'
-        G_whole, pages, node_feats, edges = load_data_make_graph_nervenet(get_data_path(other_C['node_feat_type']))
-        # Fill in missing values
-        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], None)
-
-        run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, None)
-        exp_end = time.time()
-        print('Time taken (m): {:.2f}'.format((exp_end - exp_start) / 60.))
-
-
-def run_random_search(num_diff_experiments, num_repeat_experiment):
-    # Load grid of constants
-    grid = load_constants('constants/constants-grid.json')
-
-    for diff_experiment in range(num_diff_experiments):
-        # First pick the hyp params to use
-        episode_C, model_C, goal_C, agent_C, other_C = select_hyp_params(grid)
-        assert model_C['model_type'] != 'deepmind'
-        G_whole, pages, node_feats, edges = load_data_make_graph_nervenet(get_data_path(other_C['node_feat_type']))
-        fill_in_missing_hyp_params(model_C, goal_C, len(pages), len(edges), node_feats.shape[1], None)
-
-        for same_experiment in range(num_repeat_experiment):
-            # Load df for saving data
-            df = pd.read_excel('run-data.xlsx')
-
-            exp_start = time.time()
-
-            print(' --- Running experiment {}.{} --- '.format(diff_experiment, same_experiment))
-
-            run(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edges, df)
-
-            exp_end = time.time()
-            print('Time taken (m): {:.2f}\n'.format((exp_end - exp_start) / 60.))
-
-
-if __name__ == '__main__':
-    device = torch.device('cpu')
-    # print('Num cores: {}'.format(mp.cpu_count()))
-
-    # run_normal(num_experiments=3)
-
-    refresh_excel('run-data.xlsx')
-    run_random_search(num_diff_experiments=100, num_repeat_experiment=3)

@@ -11,7 +11,7 @@
         "shortest_path_range_allowed_MAX": [6]
     },
     "model_C":{
-        "model_type": ["nervenet", "no_structure", "fully_connected"],
+        "model_type": ["deepmind"],
         "num_nodes": [null],
         "num_edges": [null],
         "node_feat_size": [null],
@@ -27,12 +27,12 @@
         "goal_size": [null]
     },
     "agent_C":{
-        "gae_tau": [0.95],
+        "gae_tau": [0.90],
         "entropy_weight": [0.01],
         "minibatch_size": [32],
         "optimization_epochs": [10],
-        "ppo_ratio_clip": [0.2],
-        "discount": [0.99],
+        "ppo_ratio_clip": [0.3],
+        "discount": [0.95],
         "learning_rate": [1e-3],
         "clip_grads": [true],
         "gradient_clip": [1.0],
@@ -41,8 +41,9 @@
     },
     "other_C":{
         "num_agents": [8],
-        "reach_goal_rew": [10],
+        "reach_goal_rew": [5],
         "not_reach_goal_rew": [-5],
-        "node_feat_type": [0]
+        "node_feat_type": [1],
+        "data": ["easy"]
     }
 }

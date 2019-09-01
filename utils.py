@@ -12,15 +12,6 @@ import random
 import torch.multiprocessing as mp
 
 
-def get_data_path(node_feat_type):
-    if node_feat_type == 0:
-        return 'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features_title.pkl'
-    elif node_feat_type == 1:
-        return 'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features_soup.pkl'
-    else:
-        return 'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3_w_features_concat.pkl'
-
-
 # This assigns this agents grads to the shared grads at the very start
 def ensure_shared_grads(model, shared_model):
     for param, shared_param in zip(model.parameters(),
@@ -63,34 +54,34 @@ class Page:
         self.links_feats = None  # dict of each out links features, Key: out-node title, Value: edge feature vector
         
 
-def load_data_make_graph_nervenet(datapath):
-    # Load the wiki-dict i want
-    with open(datapath, 'rb') as f:
-        pages = pickle.load(f)
-    # Convert to ordered dict so i can use indices to refer to pages
-    # Convert pages to ordered dict
-    pages = OrderedDict(pages)
-    # Add indices and get feats for each page
-    node_feats = []
-    for indx, (title, obj) in enumerate(pages.items()):
-        obj.indx = indx
-        node_feats.append(obj.feats)
-    node_feats = np.stack(node_feats)
-    # Make edges for graph generation
-    edges = []
-    for title, obj in pages.items():
-        for link in obj.links:
-            in_node = obj.indx
-            out_node = pages[link].indx
-            edges.append((in_node, out_node))
-    # Make whole graph
-    G_whole = nx.DiGraph()
-    G_whole.add_edges_from(edges)
-    
-    return G_whole, pages, node_feats, edges
+# def load_data_make_graph_nervenet(datapath):
+#     # Load the wiki-dict i want
+#     with open(datapath, 'rb') as f:
+#         pages = pickle.load(f)
+#     # Convert to ordered dict so i can use indices to refer to pages
+#     # Convert pages to ordered dict
+#     pages = OrderedDict(pages)
+#     # Add indices and get feats for each page
+#     node_feats = []
+#     for indx, (title, obj) in enumerate(pages.items()):
+#         obj.indx = indx
+#         node_feats.append(obj.feats)
+#     node_feats = np.stack(node_feats)
+#     # Make edges for graph generation
+#     edges = []
+#     for title, obj in pages.items():
+#         for link in obj.links:
+#             in_node = obj.indx
+#             out_node = pages[link].indx
+#             edges.append((in_node, out_node))
+#     # Make whole graph
+#     G_whole = nx.DiGraph()
+#     G_whole.add_edges_from(edges)
+#
+#     return G_whole, pages, node_feats, edges
 
 
-def load_data_make_graph_deepmind(datapath):
+def load_data_make_graph(datapath):
     # Load the wiki-dict i want
     with open(datapath, 'rb') as f:
         pages = pickle.load(f)
@@ -122,19 +113,23 @@ def load_data_make_graph_deepmind(datapath):
     return G_whole, pages, node_feats, edge_feats, edges
 
 
-# For seeing how long paths tend to be in a graph
-def print_paths(num_nodes, init_node, goal_node, G, model_C, G_whole):
-    arr = []
-    for _ in range(200):
-        init_node = random.randint(0, model_C['num_nodes']-1)
-        goal_node = random.randint(0, model_C['num_nodes']-1)
-        if not nx.has_path(G_whole, init_node, goal_node) or init_node == goal_node:
-            continue
-        shortest_path_length = nx.shortest_path_length(G_whole, init_node, goal_node)
-        if shortest_path_length == 1:
-            continue
-        arr.append(shortest_path_length)
-    np.array(arr).mean()
+# Returns paths of a certain length (or in range)
+def return_paths_in_range(low_high, num_node, G):
+    low = low_high[0]
+    high = low_high[1]
+    paths = []
+    lengths = []
+    for u in range(num_node):
+        for v in range(num_node):
+            # restart if goal node is init node, or no path
+            if not nx.has_path(G, u, v) or u == v:
+                continue
+            shortest_path_length = nx.shortest_path_length(G, u, v)
+            if shortest_path_length < low or shortest_path_length > high:
+                continue
+            paths.append((u, v))
+            lengths.append(shortest_path_length)
+    return len(paths), np.array(lengths).mean(), paths
 
     
 def cos_sim(a, b):
@@ -174,7 +169,7 @@ def select_hyp_params(grid):
     agent_C = select_params(grid['agent_C'])
     other_C = select_params(grid['other_C'])
     return episode_C, model_C, goal_C, agent_C, other_C
-    
+
 
 def refresh_excel(filepath):
     df = pd.read_excel(filepath)
