@@ -5,7 +5,9 @@ from train_nervenet_parallel import run_nervenet
 
 
 def get_data_path(data_type, node_feat_type):
-    if data_type == 'very easy':
+    if data_type == 'toy':
+        dir = 'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3/'
+    elif data_type == 'very easy':
         dir = 'data/animals-D3-20K-nodes76-avgedges4.0-totaledges305-max10-minout2-minin2/'
     elif data_type == 'easy':
         dir = 'data/animals-D3-20K-nodes77-avgedges3.6-totaledges278-max10-minout1-minin1/'
@@ -136,6 +138,7 @@ REEMEMBER TO CHANGE BACK THE EVALS!!!!!!!!
 
 '''
 
+- very easy, 4-6, 20 steps, FC did okayish and the rest did terribly
 
 '''
 
