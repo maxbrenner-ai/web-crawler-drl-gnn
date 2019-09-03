@@ -7,6 +7,8 @@ from train_nervenet_parallel import run_nervenet
 def get_data_path(data_type, node_feat_type):
     if data_type == 'toy':
         dir = 'data/animals-D3-small-30K-nodes40-edges202-max10-minout2-minin3/'
+    elif data_type == 'toy2':
+        dir = 'data/animals-D4-60K-sorted-nodes41-avgedges5.2-totaledges215-max10-minout3-minin3/'
     elif data_type == 'very easy':
         dir = 'data/animals-D3-20K-nodes76-avgedges4.0-totaledges305-max10-minout2-minin2/'
     elif data_type == 'easy':

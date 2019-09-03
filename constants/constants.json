@@ -4,7 +4,7 @@
         "rollout_length": 128,
         "eval_freq": 100,
         "eval_num_eps": 100,
-        "max_ep_steps": 20,
+        "max_ep_steps": 10,
         "ignore_internal_nodes": false,
         "num_props": 1,
         "shortest_path_range_allowed_MIN": 4,
@@ -44,6 +44,6 @@
         "reach_goal_rew": 5,
         "not_reach_goal_rew": -5,
         "node_feat_type": 1,
-        "data": "toy"
+        "data": "toy2"
     }
 }
