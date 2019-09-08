@@ -149,8 +149,6 @@ class PPOAgent:
                 end_pred_time = time.time()
                 train_pred_times.append(end_pred_time - start_pred_time)
 
-                # assert True == False
-
                 # Calc. Loss
                 #                 self.gnn.train()
                 ratio = (prediction['log_pi_a'] - sampled_log_probs_old).exp()

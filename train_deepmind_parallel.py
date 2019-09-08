@@ -11,7 +11,7 @@ def train(id, shared_gnn, optimizer, rollout_counter, args):
     episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges = args
     local_gnn = Deepmind_GNN(model_C['node_feat_size'], model_C['edge_feat_size'], model_C['node_hidden_size'],
                               model_C['edge_hidden_size'], goal_C['goal_size'], goal_C['goal_opt'],
-                              agent_C['critic_agg_weight'], device).to(device)
+                              agent_C['critic_agg_weight'], agent_C['combined_actor_critic'], device).to(device)
     agent = PPOAgent(args, Environment(args), shared_gnn, local_gnn, optimizer)
     train_step = 0
     rollout_times, batch_times, pred_times = [], [], []
@@ -32,7 +32,7 @@ def eval(shared_gnn, rollout_counter, args, df):
     episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges = args
     local_gnn = Deepmind_GNN(model_C['node_feat_size'], model_C['edge_feat_size'], model_C['node_hidden_size'],
                               model_C['edge_hidden_size'], goal_C['goal_size'], goal_C['goal_opt'],
-                              agent_C['critic_agg_weight'], device).to(device)
+                              agent_C['critic_agg_weight'], agent_C['combined_actor_critic'], device).to(device)
     agent = PPOAgent(args, Environment(args), shared_gnn, local_gnn, None)
     last_eval = 0
     run_info = {}  # based on the avg steps taken
@@ -76,7 +76,7 @@ def eval(shared_gnn, rollout_counter, args, df):
 def run_deepmind(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, pages, node_feats, edge_feats, edges, df):
     shared_gnn = Deepmind_GNN(model_C['node_feat_size'], model_C['edge_feat_size'], model_C['node_hidden_size'],
                               model_C['edge_hidden_size'], goal_C['goal_size'], goal_C['goal_opt'],
-                              agent_C['critic_agg_weight'], device).to(device)
+                              agent_C['critic_agg_weight'], agent_C['combined_actor_critic'], device).to(device)
     shared_gnn.share_memory()
     optimizer = torch.optim.Adam(shared_gnn.parameters(), agent_C['learning_rate'])
     rollout_counter = Counter()  # To keep track of all the rollouts amongst agents

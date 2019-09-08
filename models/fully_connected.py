@@ -115,7 +115,7 @@ class ActorModel(nn.Module):
 # Output: ()  state value
 # If goal_opt == 2 then send in goal
 class CriticModel(nn.Module):
-    def __init__(self, hidden_size, weight, goal_size=None):
+    def __init__(self, hidden_size, weight, goal_size=None, model=False):
         super(CriticModel, self).__init__()
         self.name = 'actor'
         self.weight = weight
@@ -126,10 +126,13 @@ class CriticModel(nn.Module):
             input_size = hidden_size
             self.use_goal = False
 
-        self.model = nn.Sequential(
-            nn.Linear(input_size, 1)
-        )
-        self.model.apply(layer_init_filter)
+        if not model:
+            self.model = nn.Sequential(
+                nn.Linear(input_size, 1)
+            )
+            self.model.apply(layer_init_filter)
+        else:
+            self.model = model
 
     def forward(self, nodes, goal, num_nodes):
         if self.use_goal:
@@ -157,7 +160,7 @@ class CriticModel(nn.Module):
 
 class FullyConnected_baseline(nn.Module):
     def __init__(self, feat_size, hidden_size, message_size, goal_size, goal_opt, critic_agg_weight,
-                 device):
+                 combined_a_c, device):
         super(FullyConnected_baseline, self).__init__()
 
         self.device = device
@@ -179,7 +182,8 @@ class FullyConnected_baseline(nn.Module):
         self.message_model = MessageModel(hidden_size, message_size).to(device)
         self.update_model = UpdateModel(message_size, hidden_size, update_goal_size).to(device)
         self.actor_model = ActorModel(hidden_size, output_goal_size).to(device)
-        self.critic_model = CriticModel(hidden_size, critic_agg_weight, output_goal_size).to(device)
+        self.critic_model = CriticModel(hidden_size, critic_agg_weight, output_goal_size,
+                                        self.actor_model.model if combined_a_c else None).to(device)
 
         self.models = [self.input_model, self.message_model, self.update_model, self.actor_model, self.critic_model]
 

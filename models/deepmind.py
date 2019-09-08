@@ -47,7 +47,7 @@ class EdgeUpdateModel(nn.Module):
         self.input_shape_cols = 2 * node_hidden_size + edge_hidden_size
         self.model = nn.Sequential(
             nn.Linear(self.input_shape_cols, edge_hidden_size),
-            nn.ReLU()
+            nn.ReLU(),
         )
         self.model.apply(layer_init_filter)
 
@@ -71,7 +71,7 @@ class NodeUpdateModel(nn.Module):
             self.use_goal = False
         self.model = nn.Sequential(
             nn.Linear(input_size, node_hidden_size),
-            nn.ReLU()
+            nn.ReLU(),
         )
         self.model.apply(layer_init_filter)
 
@@ -116,7 +116,7 @@ class ActorModel(nn.Module):
 # Output: ()  state value
 # If goal_opt == 2 then send in goal
 class CriticModel(nn.Module):
-    def __init__(self, hidden_size, weight, goal_size=None):
+    def __init__(self, hidden_size, weight, goal_size=None, model=None):
         super(CriticModel, self).__init__()
         self.name = 'actor'
         self.weight = weight
@@ -127,10 +127,13 @@ class CriticModel(nn.Module):
             input_size = hidden_size
             self.use_goal = False
 
-        self.model = nn.Sequential(
-            nn.Linear(input_size, 1)
-        )
-        self.model.apply(layer_init_filter)
+        if not model:
+            self.model = nn.Sequential(
+                nn.Linear(input_size, 1)
+            )
+            self.model.apply(layer_init_filter)
+        else:
+            self.model = model
 
     def forward(self, nodes, goal, num_nodes):
         if self.use_goal:
@@ -157,7 +160,8 @@ class CriticModel(nn.Module):
 
 
 class Deepmind_GNN(nn.Module):
-    def __init__(self, node_feat_size, edge_feat_size, node_hidden_size, edge_hidden_size, goal_size, goal_opt, critic_agg_weight, device):
+    def __init__(self, node_feat_size, edge_feat_size, node_hidden_size, edge_hidden_size, goal_size, goal_opt,
+                 critic_agg_weight, combined_a_c, device):
         super(Deepmind_GNN, self).__init__()
 
         self.device = device
@@ -179,7 +183,8 @@ class Deepmind_GNN(nn.Module):
         self.edge_update_model = EdgeUpdateModel(node_hidden_size, edge_hidden_size).to(device)
         self.node_update_model = NodeUpdateModel(node_hidden_size, edge_hidden_size, update_goal_size).to(device)
         self.actor_model = ActorModel(node_hidden_size, output_goal_size).to(device)
-        self.critic_model = CriticModel(node_hidden_size, critic_agg_weight, output_goal_size).to(device)
+        self.critic_model = CriticModel(node_hidden_size, critic_agg_weight, output_goal_size,
+                                        self.actor_model.model if combined_a_c else None).to(device)
 
         self.models = [self.node_input_model, self.edge_input_model, self.edge_update_model, self.node_update_model, self.actor_model, self.critic_model]
 

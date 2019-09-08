@@ -13,15 +13,15 @@ def make_model(model_type, episode_C, model_C, goal_C, agent_C, other_C, device)
         return NerveNet_GNN(model_C['node_feat_size'], model_C['node_hidden_size'],
                      model_C['message_size'], model_C['output_size'],
                      goal_C['goal_size'], goal_C['goal_opt'], agent_C['critic_agg_weight'],
-                     device).to(device)
+                     agent_C['combined_actor_critic'], device).to(device)
     elif model_type == 'no_structure':
         return NoStructure_baseline(model_C['node_feat_size'], model_C['node_hidden_size'],
                                     goal_C['goal_size'], goal_C['goal_opt'], agent_C['critic_agg_weight'],
-                                    device).to(device)
+                                    agent_C['combined_actor_critic'], device).to(device)
     elif model_type == 'fully_connected':
         return FullyConnected_baseline(model_C['node_feat_size'], model_C['node_hidden_size'],
                                        model_C['message_size'], goal_C['goal_size'], goal_C['goal_opt'],
-                                       agent_C['critic_agg_weight'], device).to(device)
+                                       agent_C['critic_agg_weight'], agent_C['combined_actor_critic'], device).to(device)
     assert True == False, 'didnt put in a valid model type'
 
 

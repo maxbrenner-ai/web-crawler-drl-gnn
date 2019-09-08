@@ -16,7 +16,7 @@ class InputModel(nn.Module):
         self.hidden_size = hidden_size
         self.model = nn.Sequential(
             nn.Linear(self.feat_size, self.hidden_size),
-            nn.ReLU(),
+            nn.ReLU()
             # nn.BatchNorm1d(self.hidden_size)
         )
         self.model.apply(layer_init_filter)
@@ -114,7 +114,7 @@ class ActorModel(nn.Module):
 # Output: ()  state value
 # If goal_opt == 2 then send in goal
 class CriticModel(nn.Module):
-    def __init__(self, hidden_size, weight, goal_size=None):
+    def __init__(self, hidden_size, weight, goal_size=None, model=None):
         super(CriticModel, self).__init__()
         self.name = 'actor'
         self.weight = weight
@@ -124,11 +124,14 @@ class CriticModel(nn.Module):
         else:
             input_size = hidden_size
             self.use_goal = False
-            
-        self.model = nn.Sequential(
-            nn.Linear(input_size, 1)
-        )
-        self.model.apply(layer_init_filter)
+
+        if not model:
+            self.model = nn.Sequential(
+                nn.Linear(input_size, 1)
+            )
+            self.model.apply(layer_init_filter)
+        else:
+            self.model = model
 
     def forward(self, nodes, goal, num_nodes):
         if self.use_goal:
@@ -155,7 +158,8 @@ class CriticModel(nn.Module):
 
 
 class NerveNet_GNN(nn.Module):
-    def __init__(self, feat_size, hidden_size, message_size, output_size, goal_size, goal_opt, critic_agg_weight, device):
+    def __init__(self, feat_size, hidden_size, message_size, output_size, goal_size, goal_opt, critic_agg_weight,
+                 combined_a_c, device):
         super(NerveNet_GNN, self).__init__()
         
         self.device = device
@@ -176,8 +180,10 @@ class NerveNet_GNN(nn.Module):
         self.input_model = InputModel(feat_size, hidden_size).to(device)
         self.message_model = MessageModel(hidden_size, message_size).to(device)
         self.update_model = UpdateModel(message_size, hidden_size, update_goal_size).to(device)
+        # If combined_actor_critic == True then send the model made in actor to critic
         self.actor_model = ActorModel(hidden_size, output_goal_size).to(device)
-        self.critic_model = CriticModel(hidden_size, critic_agg_weight, output_goal_size).to(device)
+        self.critic_model = CriticModel(hidden_size, critic_agg_weight, output_goal_size,
+                                        self.actor_model.model if combined_a_c else None).to(device)
         
         self.models = [self.input_model, self.message_model, self.update_model, self.actor_model, self.critic_model]
 
@@ -241,8 +247,8 @@ class NerveNet_GNN(nn.Module):
         # Get outputs if need to ------
         if get_output:
             v = self.critic_model(updates, goal, num_nodes).unsqueeze(-1)
-
             logits_all = self.actor_model(updates, goal).flatten()
+
             assert logits_all.shape == (inputs.shape[0],)
             log_prob_all, entropy_all, actions_all = [], [], []
             start_indx = 0
