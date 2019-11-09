@@ -1,4 +1,4 @@
-# Web Crawler with distributed PPO and Graph Neural Network
+# Web Crawler with distributed PPO and Graph Neural Networks
 This is an experimental project on trying to make a webcrawler that attempts to find a target webpage on a wikipedia dump although
 it could be extended to many other websites and even the internet in general. 
 As it does this it builds up a graph of the pages that it visits and uses this to asses which page is should explore
