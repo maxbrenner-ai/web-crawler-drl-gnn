@@ -12,6 +12,7 @@ import random
 import torch.multiprocessing as mp
 
 
+# Acknowledge: Ilya Kostrikov (https://github.com/ikostrikov)
 # This assigns this agents grads to the shared grads at the very start
 def ensure_shared_grads(model, shared_model):
     for param, shared_param in zip(model.parameters(),
@@ -21,6 +22,7 @@ def ensure_shared_grads(model, shared_model):
         shared_param._grad = param.grad
 
 
+# Acknowledge: Alexis Jacq (https://github.com/alexis-jacq)
 class Counter:
     """enable the chief to access worker's total number of updates"""
 
@@ -52,34 +54,6 @@ class Page:
         self.indx = None  # Relative to the ordered dict below
         self.feats = None
         self.links_feats = None  # dict of each out links features, Key: out-node title, Value: edge feature vector
-        
-
-# def load_data_make_graph_nervenet(datapath):
-#     # Load the wiki-dict i want
-#     with open(datapath, 'rb') as f:
-#         pages = pickle.load(f)
-#     # Convert to ordered dict so i can use indices to refer to pages
-#     # Convert pages to ordered dict
-#     pages = OrderedDict(pages)
-#     # Add indices and get feats for each page
-#     node_feats = []
-#     for indx, (title, obj) in enumerate(pages.items()):
-#         obj.indx = indx
-#         node_feats.append(obj.feats)
-#     node_feats = np.stack(node_feats)
-#     # Make edges for graph generation
-#     edges = []
-#     for title, obj in pages.items():
-#         for link in obj.links:
-#             in_node = obj.indx
-#             out_node = pages[link].indx
-#             edges.append((in_node, out_node))
-#     # Make whole graph
-#     G_whole = nx.DiGraph()
-#     G_whole.add_edges_from(edges)
-#
-#     return G_whole, pages, node_feats, edges
-
 
 def load_data_make_graph(datapath):
     # Load the wiki-dict i want
@@ -183,7 +157,8 @@ def vis_ep(ep_graphs):
         nx.draw_kamada_kawai(G, with_labels=True)
         plt.show()
     
-    
+
+# Acknowledge: Shangtong Zhang (https://github.com/ShangtongZhang)
 class Storage:
     def __init__(self, size, keys=None):
         if keys is None:
@@ -218,6 +193,7 @@ class Storage:
         return map(lambda x: torch.cat(x, dim=0), data)
  
 
+# Acknowledge: Shangtong Zhang (https://github.com/ShangtongZhang)
 def tensor(x, device):
     if isinstance(x, torch.Tensor):
         return x
@@ -225,7 +201,8 @@ def tensor(x, device):
     x = torch.tensor(x, device=device, dtype=torch.float32)
     return x
   
-    
+
+# Acknowledge: Shangtong Zhang (https://github.com/ShangtongZhang)
 def random_sample(indices, batch_size):
     indices = np.asarray(np.random.permutation(indices))
     batches = indices[:len(indices) // batch_size * batch_size].reshape(-1, batch_size)
@@ -250,8 +227,6 @@ def layer_init(layer, w_scale=1.0):
 
     
 def plot_grad_flow(layers, ave_grads, max_grads):
-    '''Plots the gradients flowing through different layers in the net during training.
-    Can be used for checking for possible gradient vanishing / exploding problems. '''
     plt.plot(ave_grads, alpha=0.3, color="b")
     plt.hlines(0, 0, len(ave_grads) + 1, linewidth=1, color="k")
     plt.xticks(range(0, len(ave_grads), 1), layers, rotation="vertical")

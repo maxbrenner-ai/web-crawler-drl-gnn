@@ -130,57 +130,6 @@ def run_random_search(num_diff_experiments, num_repeat_experiment, df_path):
             print('Time taken (m): {:.2f}\n'.format((exp_end - exp_start) / 60.))
 
 
-
-'''
-
-REEMEMBER TO CHANGE BACK THE EVALS!!!!!!!!
-
-
-'''
-
-'''
-
-The issue is more than likely the number of paths, toy has an extremely low number of possible paths.
-So after I hopefully get it to work on lots of little paths, make it work on longer paths and then lots of
-longer paths.
-
-Try messing with the model: add another input layer, combine actor and critic, add back batchnorm or dropout.
-Might need many skinnier layers for the models, instead of one wide layer. 
-Mess with the rew func, num props.
-
-- very easy, 4-6, 20 steps, FC did okayish and the rest did terribly
-- toy2, 4-6, 10 steps, FC did okayish and the rest did terribly
-- toy2, 4-6, 6 steps, all did okayish, FC did better
-- toy2, 4-6, 8 steps, FC did okayish and the rest did not well
-- toy2, 4-6, 8 steps, batch norm on all layers, Terribly, FC and no-struct slightly less terrible
-- toy2, 4-6, 8 steps, 2 input layers (16), all did pretty meh
-- toy2, 4-6, 8 steps, Deepmind: 2 layers (16) update edge, Nervenet and FC: 2 layers (16) message, pretty meh
-- toy2, 4-6, 8 steps, all layers dropout (25%), terrible
-- toy2, 4-6, 8 steps, Deepmind: 2 layers (16) update node, Nervenet and FC: 2 layers (16) update, pretty meh
-- toy2, 4-6, 8 steps, combined actor/critic, all terrible
-- toy2, 4-6, 8 steps, tested diff rew function values, nervenet pretty meh (didnt try other models)
-- toy2, 4-6, 8 steps, all models (except for actor and critic) 2 layers, pretty meh
-- toy2, 6-8, 10 steps, all did pretty well (nervenet the worse)
-
-- toy2, 4-6, 8 steps, l layer each model tuned (500 rollouts):
-    - deepmind: 4.85
-    - nervenet: 5.18
-    - FC: 4.60
-    - NS: 4.20
-
-- very easy, 4-6, 8 steps (1000 rollouts):
-    - deepmind: 7.8
-    - nervenet: 7.5
-    - FC: 7.24
-    - NS: 5.92
-
-- very easy, 6-8, 10 steps (500 rollouts):
-    - deepmind: 
-    - nervenet: 
-    - FC: 
-    - NS: 
-'''
-
 if __name__ == '__main__':
     device = torch.device('cpu')
 
@@ -188,16 +137,15 @@ if __name__ == '__main__':
 
     # print('Num cores: {}'.format(mp.cpu_count()))
 
-    # run_normal(num_experiments=3)
+    # Run given constants file
+    run_normal(num_experiments=3)
 
+    # Shows how to run multiple random search experiments
     # refresh_excel('run-data.xlsx')
     # run_random_search(num_diff_experiments=100, num_repeat_experiment=3, df_path=df_path)
 
+    # Shows how to run a grid search expr, that grid searches a single hypparam
     # refresh_excel(df_path)
-    # run_grid_search_single_variable(num_repeat_experiment=10, param_set='model', var='model_type',
-    #                                 values=['deepmind', 'nervenet', 'fully_connected', 'no_structure'], df_path=df_path)
-
-    refresh_excel(df_path)
-    run_grid_search_single_variable(num_repeat_experiment=10, param_set='agent', var='critic_agg_weight',
-                                    values=[0.0, 0.25, 0.5, 0.75, 1.0], df_path=df_path)
+    # run_grid_search_single_variable(num_repeat_experiment=10, param_set='agent', var='critic_agg_weight',
+    #                                 values=[0.0, 0.25, 0.5, 0.75, 1.0], df_path=df_path)
 

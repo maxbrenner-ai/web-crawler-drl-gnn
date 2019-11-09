@@ -34,10 +34,6 @@ class Environment:
         in_edges = self.get_in_edges(G_curr, current_nodes, current_edges)
         edge_tuples = self.get_edge_tuples(G_curr, current_nodes, current_edges)
 
-        # print('-------------------')
-        # print(in_edges)
-        # print(edge_tuples)
-
         if not done:
             next_state = self._copy_state(G_curr, current_nodes, current_edges, goal_node, goal_feats,
                                           shortest_path_length, in_edges, edge_tuples)
@@ -110,14 +106,6 @@ class Environment:
         return (G_init, current_nodes, current_edges, goal_node, goal_feats, shortest_path_length, in_edges, edge_tuples)
 
     def add_children(self, G_curr, node_indx, goal_node_indx, current_nodes, current_edges):
-
-        # print('\n\n\n\n----------------------')
-        # print('selected node indx (abs): {}'.format(node_indx))
-        # print('goal node indx (abs): {}'.format(goal_node_indx))
-        # print('current nodes: {}'.format(current_nodes))
-        # print('current edges: {}'.format(current_edges))
-        # print('edges: {}'.format(G_curr.edges(data=True)))
-
         achieved_goal = False
         # Check the children of the node to see if they need to be added to the current graph
         children = self.G_whole.successors(node_indx)
@@ -136,21 +124,11 @@ class Environment:
                 G_curr.add_edge(node_indx, child, indx=e_indx)
                 current_edges.update({e_indx: {'rel_indx': len(current_edges), 'u': node_indx, 'v': child}})  # Grabs the abs. edge indx
 
-        # print('new current nodes: {}'.format(current_nodes))
-        # print('new current edges: {}'.format(current_edges))
-        # print('new edges: {}'.format(G_curr.edges(data=True)))
-        # print('achieved goal: {}'.format(achieved_goal))
-
         # assert sorted(list(current_nodes.values())) == list(current_nodes.values())
         return achieved_goal
 
     # output: in_edges is a list of lists of edge indxes of in-edge to a node (ordered by node)
     def get_in_edges(self, G_curr, current_nodes, current_edges):
-
-        # print('\n\n\n\n---------------------------')
-        # print('current nodes: {}'.format(current_nodes))
-        # print('current edges: {}'.format(current_edges))
-        # print('edges: {}'.format(G_curr.edges(data=True)))
 
         in_edges_list = []
         for node in current_nodes.keys():
@@ -172,12 +150,6 @@ class Environment:
 
     # output: edge_tuples is a list of all edges in terms of in-node indx and out-node indx
     def get_edge_tuples(self, G_curr, current_nodes, current_edges):
-
-        # print('\n\n\n\n\n-------------------------')
-        # print('current nodes: {}'.format(current_nodes))
-        # print('current edges: {}'.format(current_edges))
-        # print('edges: {}'.format(G_curr.edges))
-
         edge_tuples = []
         for item in current_edges.values():
             in_node_abs = item['u']
@@ -191,12 +163,6 @@ class Environment:
         return edge_tuples
 
     def _unpack_states(self, states, node_feats_tensor, edge_feats_tensor):
-
-        # print('\n\n\n\n\n\n\n\n---------------------')
-        # print('states: {}'.format(states))
-        # print('node_feats_tensor: {}'.format(node_feats_tensor))
-        # print('edge_feats_tensor: {}'.format(edge_feats_tensor))
-
         num_nodes_all = []
         num_edges_all = []
         goal_feats_all = []
@@ -219,16 +185,6 @@ class Environment:
         node_states_all_tensor = torch.cat(node_states_all, dim=0)
         edge_states_all_tensor = torch.cat(edge_states_all, dim=0)
         goal_feats_all_tensor = torch.stack(goal_feats_all, dim=0)
-
-        # print('node_states_all_tensor: {}'.format(node_states_all_tensor))
-        # print('edge_states_all_tensor: {}'.format(edge_states_all_tensor))
-        # print('goal_feats_all_tensor: {}'.format(goal_feats_all_tensor))
-        # print('num_nodes_all: {}'.format(num_nodes_all))
-        # print('num_edges_all: {}'.format(num_edges_all))
-        # print('in_edges_all: {}'.format(in_edges_all))
-        # print('edge_tuples_all: {}'.format(edge_tuples_all))
-        # print('total_num_nodes: {}'.format(total_num_nodes))
-
         return node_states_all_tensor, edge_states_all_tensor, goal_feats_all_tensor, num_nodes_all, num_edges_all, \
                in_edges_all, edge_tuples_all, total_num_nodes
 

@@ -6,6 +6,7 @@ import torch.nn as nn
 from utils import Storage, tensor, random_sample, ensure_shared_grads
 
 
+# Code adapted from: Shangtong Zhang (https://github.com/ShangtongZhang)
 class PPOAgent:
     def __init__(self, args, env, shared_gnn, local_gnn, optimizer):
         if args[1]['model_type'] == 'deepmind':
