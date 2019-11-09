@@ -58,7 +58,7 @@ def run_normal(num_experiments=1):
 # param_set: out of the 5 hyperparm dicts that are made which one is the tested var in
 # var: name of var
 # values: values to search
-def run_grid_search_single_variable(num_repeat_experiment, param_set, var, values):
+def run_grid_search_single_variable(num_repeat_experiment, param_set, var, values, df_path):
     constants = load_constants('constants/constants.json')
     episode_C, model_C, goal_C, agent_C, other_C = constants['episode_C'], constants['model_C'], constants['goal_C'], \
                                                    constants['agent_C'], constants['other_C']
@@ -81,7 +81,7 @@ def run_grid_search_single_variable(num_repeat_experiment, param_set, var, value
 
         for same_experiment in range(num_repeat_experiment):
             # Load df for saving data
-            df = pd.read_excel('run-data.xlsx')
+            df = pd.read_excel(df_path)
 
             exp_start = time.time()
 
@@ -99,7 +99,7 @@ def run_grid_search_single_variable(num_repeat_experiment, param_set, var, value
             print('Time taken (m): {:.2f}\n'.format((exp_end - exp_start) / 60.))
 
 
-def run_random_search(num_diff_experiments, num_repeat_experiment):
+def run_random_search(num_diff_experiments, num_repeat_experiment, df_path):
     # Load grid of constants
     grid = load_constants('constants/constants-grid.json')
 
@@ -112,7 +112,7 @@ def run_random_search(num_diff_experiments, num_repeat_experiment):
 
         for same_experiment in range(num_repeat_experiment):
             # Load df for saving data
-            df = pd.read_excel('run-data.xlsx')
+            df = pd.read_excel(df_path)
 
             exp_start = time.time()
 
@@ -159,21 +159,45 @@ Mess with the rew func, num props.
 - toy2, 4-6, 8 steps, Deepmind: 2 layers (16) update node, Nervenet and FC: 2 layers (16) update, pretty meh
 - toy2, 4-6, 8 steps, combined actor/critic, all terrible
 - toy2, 4-6, 8 steps, tested diff rew function values, nervenet pretty meh (didnt try other models)
-- toy2, 4-6, 8 steps, all models 2 layers, pretty meh
+- toy2, 4-6, 8 steps, all models (except for actor and critic) 2 layers, pretty meh
 - toy2, 6-8, 10 steps, all did pretty well (nervenet the worse)
 
+- toy2, 4-6, 8 steps, l layer each model tuned (500 rollouts):
+    - deepmind: 4.85
+    - nervenet: 5.18
+    - FC: 4.60
+    - NS: 4.20
+
+- very easy, 4-6, 8 steps (1000 rollouts):
+    - deepmind: 7.8
+    - nervenet: 7.5
+    - FC: 7.24
+    - NS: 5.92
+
+- very easy, 6-8, 10 steps (500 rollouts):
+    - deepmind: 
+    - nervenet: 
+    - FC: 
+    - NS: 
 '''
 
 if __name__ == '__main__':
     device = torch.device('cpu')
 
+    df_path = 'run-data.xlsx'
+
     # print('Num cores: {}'.format(mp.cpu_count()))
 
     # run_normal(num_experiments=3)
 
-    refresh_excel('run-data.xlsx')
-    run_random_search(num_diff_experiments=100, num_repeat_experiment=3)
-
     # refresh_excel('run-data.xlsx')
-    # run_grid_search_single_variable(num_repeat_experiment=3, param_set='model', var='model_type',
-    #                                 values=['deepmind', 'nervenet', 'fully_connected', 'no_structure'])
+    # run_random_search(num_diff_experiments=100, num_repeat_experiment=3, df_path=df_path)
+
+    # refresh_excel(df_path)
+    # run_grid_search_single_variable(num_repeat_experiment=10, param_set='model', var='model_type',
+    #                                 values=['deepmind', 'nervenet', 'fully_connected', 'no_structure'], df_path=df_path)
+
+    refresh_excel(df_path)
+    run_grid_search_single_variable(num_repeat_experiment=10, param_set='agent', var='critic_agg_weight',
+                                    values=[0.0, 0.25, 0.5, 0.75, 1.0], df_path=df_path)
+

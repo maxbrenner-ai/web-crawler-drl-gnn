@@ -42,14 +42,17 @@ def eval(shared_gnn, rollout_counter, args, df):
         if curr_r % episode_C['eval_freq'] == 0 and last_eval != curr_r:
             last_eval = curr_r
             avg_rew, max_rew, min_rew, ach_perc, avg_opt_steps, avg_steps_taken = agent.eval_episodes()
-            # if df is None:  # Only print each one if df is none which means this isn't a hyp param search run
-            print(
-                'Testing summary at rollout {}: Avg ep rew: {:.2f}  Max ep rew: {}  Min ep rew: {}  Achieved goal percent: {:.2f}  Avg opt steps: {:.2f}  Avg steps taken: {:.2f}\n'.format(
-                    curr_r, avg_rew, max_rew, min_rew, ach_perc, avg_opt_steps, avg_steps_taken))
+            if df is None:  # Only print each one if df is none which means this isn't a hyp param search run
+                print(
+                    'Testing summary at rollout {}: Avg ep rew: {:.2f}  Max ep rew: {}  Min ep rew: {}  Achieved goal percent: {:.2f}  Avg opt steps: {:.2f}  Avg steps taken: {:.2f}\n'.format(
+                        curr_r, avg_rew, max_rew, min_rew, ach_perc, avg_opt_steps, avg_steps_taken))
             if avg_steps_taken < run_info['eval_avg_steps_taken']:
                 run_info['eval_ach_goal_perc'] = ach_perc
                 run_info['eval_avg_opt_steps'] = avg_opt_steps
                 run_info['eval_avg_steps_taken'] = avg_steps_taken
+
+            # shared_gnn.print_layer_weights()
+
         if curr_r >= episode_C['num_train_rollouts'] + 1:
             # Add run info to df
             if df is not None:

@@ -99,7 +99,9 @@ class ActorModel(nn.Module):
             self.use_goal = False
 
         self.model = nn.Sequential(
-            nn.Linear(input_size, 1)
+            nn.Linear(input_size, 16),
+            nn.ReLU(),
+            nn.Linear(16, 1)
         )
         self.model.apply(layer_init_filter)
 
@@ -118,7 +120,7 @@ class ActorModel(nn.Module):
 class CriticModel(nn.Module):
     def __init__(self, hidden_size, weight, goal_size=None, model=None):
         super(CriticModel, self).__init__()
-        self.name = 'actor'
+        self.name = 'critic'
         self.weight = weight
         if goal_size:
             input_size = hidden_size + goal_size
@@ -129,7 +131,9 @@ class CriticModel(nn.Module):
 
         if not model:
             self.model = nn.Sequential(
-                nn.Linear(input_size, 1)
+                nn.Linear(input_size, 16),
+                nn.ReLU(),
+                nn.Linear(16, 1)
             )
             self.model.apply(layer_init_filter)
         else:

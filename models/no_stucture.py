@@ -44,7 +44,9 @@ class ActorModel(nn.Module):
             self.use_goal = False
 
         self.model = nn.Sequential(
-            nn.Linear(input_size, 1)
+            nn.Linear(input_size, 16),
+            nn.ReLU(),
+            nn.Linear(16, 1)
         )
         self.model.apply(layer_init_filter)
 
@@ -74,7 +76,9 @@ class CriticModel(nn.Module):
 
         if not model:
             self.model = nn.Sequential(
-                nn.Linear(input_size, 1)
+                nn.Linear(input_size, 16),
+                nn.ReLU(),
+                nn.Linear(16, 1)
             )
             self.model.apply(layer_init_filter)
         else:

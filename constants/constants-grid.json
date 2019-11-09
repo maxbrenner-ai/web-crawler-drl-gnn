@@ -1,24 +1,24 @@
 {
     "episode_C":{
-        "num_train_rollouts": [500],
-        "rollout_length": [128],
-        "eval_freq": [50],
-        "eval_num_eps": [100],
-        "max_ep_steps": [8],
+        "num_train_rollouts": [1000],
+        "rollout_length": [128, 256],
+        "eval_freq": [100],
+        "eval_num_eps": [200],
+        "max_ep_steps": [10],
         "ignore_internal_nodes": [false],
         "num_props": [1],
-        "shortest_path_range_allowed_MIN": [4],
-        "shortest_path_range_allowed_MAX": [6]
+        "shortest_path_range_allowed_MIN": [6],
+        "shortest_path_range_allowed_MAX": [8]
     },
     "model_C":{
-        "model_type": ["nervenet"],
+        "model_type": ["deepmind"],
         "num_nodes": [null],
         "num_edges": [null],
         "node_feat_size": [null],
         "edge_feat_size": [null],
-        "node_hidden_size": [32],
-        "edge_hidden_size": [32],
-        "message_size": [32],
+        "node_hidden_size": [64],
+        "edge_hidden_size": [64],
+        "message_size": [16],
         "output_size": [1]
     },
     "goal_C":{
@@ -27,17 +27,17 @@
         "goal_size": [null]
     },
     "agent_C":{
-        "gae_tau": [0.90],
-        "entropy_weight": [0.01],
-        "minibatch_size": [32],
+        "gae_tau": [0.90, 0.85],
+        "entropy_weight": [0.01, 0.1, 0.001],
+        "minibatch_size": [32, 16],
         "optimization_epochs": [10],
-        "ppo_ratio_clip": [0.3],
-        "discount": [0.95],
+        "ppo_ratio_clip": [0.3, 0.4],
+        "discount": [0.95, 0.9],
         "learning_rate": [1e-3],
-        "clip_grads": [true],
+        "clip_grads": [true, false],
         "gradient_clip": [1.0],
-        "value_loss_coef": [1.0],
-        "critic_agg_weight": [0.75],
+        "value_loss_coef": [1.0, 0.5],
+        "critic_agg_weight": [0.75, 0.5, 1.0],
         "combined_actor_critic": [false]
     },
     "other_C":{
@@ -45,6 +45,6 @@
         "reach_goal_rew": [5],
         "not_reach_goal_rew": [-5],
         "node_feat_type": [1],
-        "data": ["toy2"]
+        "data": ["very easy"]
     }
 }
