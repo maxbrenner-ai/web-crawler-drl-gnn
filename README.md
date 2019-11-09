@@ -1,5 +1,5 @@
 # Web Crawler with PPO and Graph Neural Network
-This is an experimental project on trying to make a webcrawler that attempts to find a target webpage on a Wikipedia although
+This is an experimental project on trying to make a webcrawler that attempts to find a target webpage on a wikipedia dump although
 it could be extended to many other websites and even the internet in general. 
 As it does this it builds up a graph of the pages that it visits and uses this to asses which page is should explore
 each step. Right now whenever the agent chooses a page to explore all outlink pages on the chosen page are added to the graph the agent
