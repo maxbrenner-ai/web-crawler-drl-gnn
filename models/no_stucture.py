@@ -12,20 +12,16 @@ class InputModel(nn.Module):
     def __init__(self, feat_size, hidden_size):
         super(InputModel, self).__init__()
         self.name = 'input'
-        # self.num_nodes = num_nodes
         self.feat_size = feat_size
         self.hidden_size = hidden_size
         self.model = nn.Sequential(
             nn.Linear(self.feat_size, self.hidden_size),
             nn.ReLU(),
-            # nn.BatchNorm1d(self.hidden_size)
         )
         self.model.apply(layer_init_filter)
 
     def forward(self, nodes):
-        # assert nodes.shape == (self.num_nodes, self.feat_size)
         hidden_states = self.model(nodes)
-        # assert hidden_states.shape == (self.num_nodes, self.hidden_size)
         return hidden_states
 
 
@@ -142,11 +138,6 @@ class NoStructure_baseline(nn.Module):
         else:
             node_states = inputs
 
-        # print('================')
-        # print(node_states.shape)
-        # print(goal.shape)
-        # print(num_nodes)
-
         # Get outputs if need to ------
         if get_output:
             v = self.critic_model(node_states, goal, num_nodes).unsqueeze(-1)
@@ -183,24 +174,3 @@ class NoStructure_baseline(nn.Module):
                 avg_grads.append(p.grad.abs().mean())
                 max_grads.append(p.grad.abs().max())
         plot_grad_flow(layers, avg_grads, max_grads)
-
-    # def print_layer_weights(self, which='all'):
-    #     if which == 'all':
-    #         models = self.models
-    #     elif which == 'input':
-    #         models = [self.input_model]
-    #     elif which == 'message':
-    #         models = [self.message_model]
-    #     elif which == 'update':
-    #         models = [self.update_model]
-    #     elif which == 'actor':
-    #         models = [self.actor_model]
-    #     elif which == 'critic':
-    #         models = [self.critic_model]
-    #
-    #     weights = []
-    #     for model in models:
-    #         print('Model: ' + model.name)
-    #         for n, p in model.named_parameters():
-    #             if (p.requires_grad) and ("bias" not in n):
-    #                 print(str(n) + ': ' + str(p[0][:10]))

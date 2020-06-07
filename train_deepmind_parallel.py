@@ -15,13 +15,11 @@ def train(id, shared_gnn, optimizer, rollout_counter, args):
     agent = PPOAgent(args, Environment(args), shared_gnn, local_gnn, optimizer)
     train_step = 0
     rollout_times, batch_times, pred_times = [], [], []
-    #     for r in range(episode_C['num_train_rollouts']+1):
     r = 0
     while True:
         agent.train_rollout(train_step)
         r += 1
         rollout_counter.increment()
-        # print('Agent {} finished its rollout {} which is gobal rollout {}'.format(id, r, rollout_counter.get()))
         if rollout_counter.get() >= episode_C['num_train_rollouts'] + 1:
             return
 
@@ -50,8 +48,6 @@ def eval(shared_gnn, rollout_counter, args, df):
                 run_info['eval_ach_goal_perc'] = ach_perc
                 run_info['eval_avg_opt_steps'] = avg_opt_steps
                 run_info['eval_avg_steps_taken'] = avg_steps_taken
-
-            # shared_gnn.print_layer_weights()
 
         if curr_r >= episode_C['num_train_rollouts'] + 1:
             # Add run info to df

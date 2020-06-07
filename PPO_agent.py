@@ -151,7 +151,6 @@ class PPOAgent:
                 train_pred_times.append(end_pred_time - start_pred_time)
 
                 # Calc. Loss
-                #                 self.gnn.train()
                 ratio = (prediction['log_pi_a'] - sampled_log_probs_old).exp()
 
                 obj = ratio * sampled_advantages
@@ -168,9 +167,7 @@ class PPOAgent:
                 if self.agent_C['clip_grads']:
                     nn.utils.clip_grad_norm_(self.gnn.parameters(), self.agent_C['gradient_clip'])
                 ensure_shared_grads(self.gnn, self.shared_gnn)
-                #                 self.gnn.graph_grads()
                 self.opt.step()
-                #                 self.gnn.eval()
                 end_batch_time = time.time()
                 batch_times.append(end_batch_time - start_batch_time)
         self.gnn.eval()

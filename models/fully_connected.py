@@ -18,14 +18,11 @@ class InputModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(self.feat_size, self.hidden_size),
             nn.ReLU(),
-            # nn.BatchNorm1d(self.hidden_size)
         )
         self.model.apply(layer_init_filter)
 
     def forward(self, nodes):
-        # assert nodes.shape == (self.num_nodes, self.feat_size)
         hidden_states = self.model(nodes)
-        # assert hidden_states.shape == (self.num_nodes, self.hidden_size)
         return hidden_states
 
 
@@ -41,14 +38,11 @@ class MessageModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(self.hidden_size, self.message_size),
             nn.ReLU(),
-            # nn.BatchNorm1d(message_size)
         )
         self.model.apply(layer_init_filter)
 
     def forward(self, nodes):
-        # assert nodes.shape == (self.num_nodes, self.hidden_size)
         messages = self.model(nodes)
-        # assert messages.shape == (self.num_nodes, self.message_size)
         return messages
 
 
@@ -69,7 +63,6 @@ class UpdateModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
-            # nn.BatchNorm1d(hidden_size)
         )
         self.model.apply(layer_init_filter)
 
@@ -168,12 +161,7 @@ class FullyConnected_baseline(nn.Module):
         super(FullyConnected_baseline, self).__init__()
 
         self.device = device
-
-        # self.num_nodes = num_nodes
-        # self.feat_size = feat_size
-        # self.hidden_size = hidden_size
         self.message_size = message_size
-        # self.output_size = output_size
 
         update_goal_size = None
         output_goal_size = None
@@ -237,15 +225,6 @@ class FullyConnected_baseline(nn.Module):
         aggregates = self._aggregate_all(messages, num_nodes)
         # Get Updates for each node hidden state ---------
         updates = self.update_model(aggregates, node_states, goal)
-
-        # print('--------------')
-        # print(node_states.shape)
-        # print(messages.shape)
-        # print(aggregates.shape)
-        # print(updates.shape)
-        # print(messages)
-        # print(num_nodes)
-        # print(aggregates)
 
         # Get outputs if need to ------
         if get_output:

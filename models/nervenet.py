@@ -11,20 +11,16 @@ class InputModel(nn.Module):
     def __init__(self, feat_size, hidden_size):
         super(InputModel, self).__init__()
         self.name = 'input'
-        # self.num_nodes = num_nodes
         self.feat_size = feat_size
         self.hidden_size = hidden_size
         self.model = nn.Sequential(
             nn.Linear(self.feat_size, self.hidden_size),
             nn.ReLU()
-            # nn.BatchNorm1d(self.hidden_size)
         )
         self.model.apply(layer_init_filter)
 
     def forward(self, nodes):
-        # assert nodes.shape == (self.num_nodes, self.feat_size)
         hidden_states = self.model(nodes)
-        # assert hidden_states.shape == (self.num_nodes, self.hidden_size)
         return hidden_states
 
 
@@ -34,20 +30,16 @@ class MessageModel(nn.Module):
     def __init__(self, hidden_size, message_size):
         super(MessageModel, self).__init__()
         self.name = 'message'
-        # self.num_nodes = num_nodes
         self.hidden_size = hidden_size
         self.message_size = message_size
         self.model = nn.Sequential(
             nn.Linear(self.hidden_size, self.message_size),
             nn.ReLU(),
-            # nn.BatchNorm1d(message_size)
         )
         self.model.apply(layer_init_filter)
 
     def forward(self, nodes):
-        # assert nodes.shape == (self.num_nodes, self.hidden_size)
         messages = self.model(nodes)
-        # assert messages.shape == (self.num_nodes, self.message_size)
         return messages
 
 
@@ -68,7 +60,6 @@ class UpdateModel(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
-            # nn.BatchNorm1d(hidden_size)
         )
         self.model.apply(layer_init_filter)
 
@@ -167,13 +158,8 @@ class NerveNet_GNN(nn.Module):
         super(NerveNet_GNN, self).__init__()
         
         self.device = device
-        
-        # self.num_nodes = num_nodes
-        # self.feat_size = feat_size
-        # self.hidden_size = hidden_size
         self.message_size = message_size
-        # self.output_size = output_size
-        
+
         update_goal_size = None
         output_goal_size = None
         if goal_opt == 1:
@@ -252,7 +238,6 @@ class NerveNet_GNN(nn.Module):
         if get_output:
             v = self.critic_model(updates, goal, num_nodes).unsqueeze(-1)
             logits_all = self.actor_model(updates, goal).flatten()
-
             assert logits_all.shape == (inputs.shape[0],)
             log_prob_all, entropy_all, actions_all = [], [], []
             start_indx = 0
@@ -270,7 +255,6 @@ class NerveNet_GNN(nn.Module):
             assert log_prob_tensor.shape == (len(num_nodes), 1)
             assert entropy_tensor.shape == (len(num_nodes), 1)
             assert v.shape == (len(num_nodes), 1)
-
             return updates, {'a': actions_tensor, 'log_pi_a': log_prob_tensor, 'ent': entropy_tensor, 'v': v}
         return updates, None
 

@@ -32,13 +32,11 @@ def train(id, shared_gnn, optimizer, rollout_counter, args):
     agent = PPOAgent(args, Environment(args), shared_gnn, local_gnn, optimizer)
     train_step = 0
     rollout_times, batch_times, pred_times = [], [], []
-    #     for r in range(episode_C['num_train_rollouts']+1):
     r = 0
     while True:
         agent.train_rollout(train_step)
         r += 1
         rollout_counter.increment()
-        # print('Agent {} finished its rollout {} which is gobal rollout {}'.format(id, r, rollout_counter.get()))
         if rollout_counter.get() >= episode_C['num_train_rollouts'] + 1:
             return
 
@@ -92,7 +90,6 @@ def run_nervenet(episode_C, model_C, goal_C, agent_C, other_C, device, G_whole, 
     shared_gnn = make_model(model_C['model_type'], episode_C, model_C, goal_C, agent_C, other_C, device)
     shared_gnn.share_memory()
     optimizer = torch.optim.Adam(shared_gnn.parameters(), agent_C['learning_rate'])
-    #     optimizer.share_memory()
     rollout_counter = Counter()  # To keep track of all the rollouts amongst agents
     processes = []
 

@@ -55,8 +55,6 @@ class Environment:
         current_try = 0
         while True:
             current_try += 1
-            #         if current_try >= 50:
-            #              print('Current try for initialize ep is at: {}'.format(current_try))
             init_node = random.randint(0, self.model_C['num_nodes'] - 1)
             goal_node = random.randint(0, self.model_C['num_nodes'] - 1)
             # restart if goal node is init node, or no path

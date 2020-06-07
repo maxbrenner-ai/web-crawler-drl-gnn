@@ -11,7 +11,7 @@
         "shortest_path_range_allowed_MAX": 8
     },
     "model_C":{
-        "model_type": "deepmind",
+        "model_type": "nervenet",
         "num_nodes": null,
         "num_edges": null,
         "node_feat_size": null,

@@ -138,7 +138,7 @@ if __name__ == '__main__':
     # print('Num cores: {}'.format(mp.cpu_count()))
 
     # Run given constants file
-    run_normal(num_experiments=3)
+    run_normal(num_experiments=1)
 
     # Shows how to run multiple random search experiments
     # refresh_excel('run-data.xlsx')

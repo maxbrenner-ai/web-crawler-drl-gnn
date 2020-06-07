@@ -71,8 +71,6 @@ class Environment:
         current_try = 0
         while True:
             current_try += 1
-            #         if current_try >= 50:
-            #              print('Current try for initialize ep is at: {}'.format(current_try))
             init_node = random.randint(0, self.model_C['num_nodes'] - 1)
             goal_node = random.randint(0, self.model_C['num_nodes'] - 1)
             # restart if goal node is init node, or no path
@@ -109,9 +107,7 @@ class Environment:
         achieved_goal = False
         # Check the children of the node to see if they need to be added to the current graph
         children = self.G_whole.successors(node_indx)
-        # print('Children:')
         for child in children:  # abs indices
-            # print(child)
             # Add child if not in G and check if goal
             if child not in G_curr:
                 G_curr.add_node(child)
@@ -132,10 +128,6 @@ class Environment:
 
         in_edges_list = []
         for node in current_nodes.keys():
-            # print('\nNode (abs): {}'.format(node))
-            # print('Children:')
-            # for c in G_curr.predecessors(node):
-            #     print(c)
             # Loop thru all the predecessors to the current node and get the edge from the pred to the node
             in_edges_abs = [G_curr.edges[u, node]['indx'] for u in G_curr.predecessors(node)]
             # print('in edges abs: {}'.format(in_edges_abs))
@@ -143,8 +135,6 @@ class Environment:
             in_edges_rel = [current_edges[x]['rel_indx'] for x in in_edges_abs]
             # print('in edges rel: {}'.format(in_edges_rel))
             in_edges_list.append(in_edges_rel)
-
-        # print('\nin edges list: {}'.format(in_edges_list))
 
         return in_edges_list
 
