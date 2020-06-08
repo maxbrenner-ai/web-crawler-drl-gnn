@@ -1,10 +1,10 @@
 # Web Crawler with distributed PPO and Graph Neural Networks
-This is an experimental project on trying to make a webcrawler that attempts to find a target webpage on a wikipedia dump although it could be extended to many other websites and even the internet in general. It uses a distributed version of the reinforcement learning algorithm Proximal [Policy Optimization or PPO](https://arxiv.org/abs/1707.06347). 
+This is an experimental project on trying to make a webcrawler that attempts to find a target webpage on a wikipedia dump although it could be extended to many other websites and even the internet in general. It uses a distributed version of the reinforcement learning algorithm [PPO](https://arxiv.org/abs/1707.06347). 
 
-Each episode the agent starts on a random node/page and is given the features of a goal node/page it must find in the shortest number if steps. As it does this it builds up a graph of the pages that it visits and uses this to asses which page is should explore next. Right now whenever the agent chooses a page to explore all outlink pages on the chosen page are added to the graph the agent is building up. A more efficient implementation would make a second model that picks which outlink to explore given the page it chooses so that it could work on pages that have a lot of hyperlinks.
+At each episode the agent starts on a random node/page and is given the features of a goal node/page it must find in the shortest number of steps. As it does this it builds up a graph of the pages that it visits and uses this to asses which page is should explore next. Right now whenever the agent chooses a page to explore all outlink pages on the chosen page are added to the graph the agent is building up. A more efficient implementation would be to make a second model that picks which outlink to explore given the page it chooses so that it could work on pages that have a lot of hyperlinks.
 
 ## Wikipedia Dumps
-The environment that the agent crawls is a [Wikipedia dump](https://dumps.wikimedia.org/) of many pages in the 'animal' category. There are various datasets included in `data` which lists the number of nodes, average number of edges per node, total number of edges, max number of out-edges, min number of out edges and min number of in edges. Datasets with lower number of average edges per node are more sparse and harder to train on. The specific data per node/edge are discussed below in models.
+The environment that the agent crawls is a [Wikipedia dump](https://dumps.wikimedia.org/) of many pages in the 'animal' category. There are various datasets included in `data/` which lists the number of nodes, average number of edges per node, total number of edges, max number of out-edges, min number of out-edges and min number of in-edges. Datasets with lower numbers of average edges per node are more sparse and harder to train on. The specific data per node/edge are discussed below in models.
 
 ## Reinforcement Learning Algorithm
 ### PPO
@@ -24,7 +24,7 @@ Distributed algorithms use multiple processes to speed up existing algorithms su
 From the paper [_NerveNet: Learned Structure Policy with Graph Neural Networks_](http://www.cs.toronto.edu/~tingwuwang/nervenet.html). This GNN only allows for nodes to have features and not edges. In this case, the features for each node are a one-hot encoding for the words in the title of the page and the words in the outlinks' titles.
 
 ### Deepmind Structure
-From the Deepmind paper [_Graph Networks as Learnable Physics Engines for Inference and Control_](https://arxiv.org/abs/1806.01242). This GNN allows for both nodes and edges to have features. In this case, the features for each node are a one-hot encoding for the words in the title of the page. The features for each edge are a one-hot encoding for the words in the title of the page that this edge leads. 
+From the Deepmind paper [_Graph Networks as Learnable Physics Engines for Inference and Control_](https://arxiv.org/abs/1806.01242). This GNN allows for both nodes and edges to have features. In this case, the features for each node are a one-hot encoding for the words in the title of the page. The features for each edge are a one-hot encoding for the words in the title of the page that this edge leads to. 
 
 ![Deepmind DNN code](/images/deepmind.png)
 
@@ -44,6 +44,6 @@ Some important constants:
 * `shortest_path_range_allowed_MIN|MAX`: to define the range of lengths allowed from the init node to the goal node
 * `model_type`: can be `nervenet`, `deepmind`, `fully_connected` or `no_structure`
 * `num_agents`: number of PPO agents as this uses DPPO
-* `data`: Look at `get_data_path()` in `main.py` for options
+* `data`: Which dataset to use. Look at `get_data_path()` in `main.py` for options
 
-Final node, There are some interesting jupyter notebooks in `notebooks/` that show my progress throughout this project (I started by learning graph neural networks and coding them in these notebooks and then transferring to normal python files). 
+As a final note, there are some interesting jupyter notebooks in `notebooks/` that show my progress throughout this project (I started by learning graph neural networks and coding them in these notebooks and then transferring to normal python files). 
