@@ -13,7 +13,7 @@ The environment that the agent crawls is a [Wikipedia dump](https://dumps.wikime
 ![PPO code](/images/ppo.png)
 
 ### DPPO
-Distributed algorithms use multiple processes to speed up existing algorithms such as PPO. There arent as many simple resources on DPPO but I used a few different sources noted in my code such as [this repo](https://github.com/alexis-jacq/Pytorch-DPPO). I first implemented single-agent RL which means that in a single environment there is only one agent. In this apps case, this means all traffic lights are controlled by one agent. However, that means as the grid size increases the action size increases exponentially. 
+Distributed algorithms use multiple processes to speed up existing algorithms such as PPO. There arent as many simple resources on DPPO but I used a few different sources noted in my code such as [this repo](https://github.com/alexis-jacq/Pytorch-DPPO).
 
 ## Graph Neural Networks
 [GNNs or Graph Neural Networks](https://arxiv.org/pdf/1812.08434.pdf) are a variant of neural networks that operate on data that is represented as a graph. Just like how most supervised data is in a table, graph data is in a graph. Check out this classic paper on a [GCN or Graph Convolutional Network](https://openreview.net/pdf?id=SJU4ayYgl) which is the best kind of GNN to start learning (the authors Thomas Kipf and Max welling have very understandable code in [this repo](https://github.com/tkipf/gcn)). Different types of GNNs such as the two I used can differ in allowing features for nodes and edges or just nodes. 
