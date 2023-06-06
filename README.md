@@ -13,6 +13,7 @@ The environment that the agent crawls is a [Wikipedia dump](https://dumps.wikime
 ![PPO code](/images/ppo.png)
 
 ### DPPO
+#### DISCLAIMER: The DPPO implementation here is incorrect. It does not properly aggregate the gradients during training.
 Distributed algorithms use multiple processes to speed up existing algorithms such as PPO. There arent as many simple resources on DPPO but I used a few different sources noted in my code such as [this repo](https://github.com/alexis-jacq/Pytorch-DPPO).
 
 ## Graph Neural Networks
